@@ -1,17 +1,10 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #F6F5F3;
-  --color-foreground: #1A1A1A;
-  --color-foreground-secondary: #6B6B6B;
-  --color-foreground-muted: #9CA3AF;
-  --color-accent: #7C6BFF;
-  --color-accent-light: rgba(124, 107, 255, 0.15);
-  --color-green: #34C759;
-  --color-amber: #FF9F0A;
-  --color-red: #FF453A;
-  --color-glass: rgba(255, 255, 255, 0.45);
-  --color-glass-border: rgba(255, 255, 255, 0.65);
+  --color-background: #FBFBFD;
+  --color-foreground: #1D1D1F;
+  --color-foreground-secondary: #86868B;
+  --color-foreground-muted: #C7C7CC;
   --font-sans: var(--font-jakarta);
   --font-mono: var(--font-dm-mono);
 }
@@ -30,87 +23,19 @@ body {
   min-height: 100vh;
 }
 
-/* ─── Animated background orbs ─── */
-@keyframes drift1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  20% { transform: translate(120px, -80px) scale(1.15); }
-  40% { transform: translate(-60px, 100px) scale(0.9); }
-  60% { transform: translate(80px, 60px) scale(1.08); }
-  80% { transform: translate(-100px, -40px) scale(0.95); }
-}
-
-@keyframes drift2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  20% { transform: translate(-80px, 100px) scale(1.12); }
-  40% { transform: translate(100px, -60px) scale(0.88); }
-  60% { transform: translate(-100px, -80px) scale(1.15); }
-  80% { transform: translate(60px, 80px) scale(0.92); }
-}
-
-@keyframes drift3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(80px, 80px) scale(1.12); }
-  50% { transform: translate(-100px, -50px) scale(0.88); }
-  75% { transform: translate(40px, -80px) scale(1.06); }
-}
-
-@keyframes drift4 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  30% { transform: translate(-70px, -90px) scale(1.1); }
-  60% { transform: translate(90px, 50px) scale(0.9); }
-}
-
-@keyframes drift5 {
-  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-  33% { transform: translate(50px, -70px) scale(1.08) rotate(2deg); }
-  66% { transform: translate(-60px, 60px) scale(0.92) rotate(-2deg); }
-}
-
-/* ─── Grain / noise overlay ─── */
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-5%, -10%); }
-  30% { transform: translate(3%, -15%); }
-  50% { transform: translate(12%, 9%); }
-  70% { transform: translate(9%, 4%); }
-  90% { transform: translate(-1%, 7%); }
-}
-
-/* ─── Pulse glow for score ─── */
-@keyframes pulseGlow {
-  0%, 100% { filter: drop-shadow(0 0 8px var(--glow-color, rgba(124,107,255,0.3))); }
-  50% { filter: drop-shadow(0 0 20px var(--glow-color, rgba(124,107,255,0.5))); }
-}
-
-/* ─── Shimmer for loading ─── */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes floatY {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes borderGlow {
-  0%, 100% { border-color: rgba(255,255,255,0.5); }
-  50% { border-color: rgba(124, 107, 255, 0.25); }
-}
-
-/* ─── Scrollbar ─── */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.14); }
 
-/* ─── Selection ─── */
+/* Selection */
 ::selection {
-  background: rgba(124, 107, 255, 0.2);
-  color: #1A1A1A;
+  background: rgba(0, 113, 227, 0.12);
+  color: #1D1D1F;
 }

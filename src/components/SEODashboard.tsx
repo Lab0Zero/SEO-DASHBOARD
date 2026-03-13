@@ -12,7 +12,6 @@ import {
   BookOpen,
   Link2,
   ChevronDown,
-  ChevronUp,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -20,10 +19,8 @@ import {
   Key,
   Loader2,
   RefreshCw,
-  Download,
   Globe,
   ArrowRight,
-  Zap,
   Eye,
   Shield,
   TrendingUp,
@@ -91,7 +88,7 @@ function seededRandom(seed: number, index: number): number {
 function getScoreColor(score: number): string {
   if (score >= 75) return "#34C759";
   if (score >= 50) return "#FF9F0A";
-  return "#FF453A";
+  return "#FF3B30";
 }
 
 function getStatus(score: number): "good" | "warning" | "critical" {
@@ -147,15 +144,6 @@ async function fetchPSI(url: string, strategy: "mobile" | "desktop", apiKey: str
   return res.json();
 }
 
-async function checkUrl(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 // ─── HTML Parser ─────────────────────────────────────────────────────────────
 
 function parseHTMLSignals(html: string, url: string) {
@@ -188,37 +176,19 @@ function parseHTMLSignals(html: string, url: string) {
   const inlineScripts = doc.querySelectorAll("script:not([src])");
   const inlineStyles = doc.querySelectorAll("style");
 
-  // Rough word count
   const bodyText = doc.body?.textContent || "";
   const wordCount = bodyText.split(/\s+/).filter((w) => w.length > 1).length;
 
   const isHttps = url.startsWith("https://");
 
   return {
-    title,
-    titleLength: title.length,
-    metaDesc,
-    metaDescLength: metaDesc.length,
-    h1Count: h1s.length,
-    h1Content: h1s[0]?.textContent?.trim().substring(0, 100) || "",
-    h2Count: h2s.length,
-    h3Count: h3s.length,
-    ogTitle,
-    ogDesc,
-    ogImage,
-    twitterCard,
-    canonical,
-    robotsMeta,
-    viewport,
-    lang,
-    hasFavicon: !!favicon,
-    totalImages: imagesAll.length,
-    imagesNoAlt,
-    structuredDataCount: structuredData.length,
-    inlineScripts: inlineScripts.length,
-    inlineStyles: inlineStyles.length,
-    wordCount,
-    isHttps,
+    title, titleLength: title.length, metaDesc, metaDescLength: metaDesc.length,
+    h1Count: h1s.length, h1Content: h1s[0]?.textContent?.trim().substring(0, 100) || "",
+    h2Count: h2s.length, h3Count: h3s.length,
+    ogTitle, ogDesc, ogImage, twitterCard, canonical, robotsMeta, viewport, lang,
+    hasFavicon: !!favicon, totalImages: imagesAll.length, imagesNoAlt,
+    structuredDataCount: structuredData.length, inlineScripts: inlineScripts.length,
+    inlineStyles: inlineStyles.length, wordCount, isHttps,
   };
 }
 
@@ -238,7 +208,6 @@ function buildAuditData(
   let estimatedSignals = 0;
   const seed = hashString(url);
 
-  // Helper to safely access PSI audits
   const getAudit = (psi: Record<string, unknown> | null, key: string) => {
     if (!psi) return null;
     const lr = psi.lighthouseResult as Record<string, unknown> | undefined;
@@ -257,7 +226,7 @@ function buildAuditData(
     return Math.round((perf.score as number) * 100);
   };
 
-  // ─── 1. Performance ───────────────────────────────────────────────────────
+  // ─── 1. Performance ─────────────────────────────────────────────────────
   const perfCriteria: CriterionResult[] = [];
   let perfScore = 50;
 
@@ -266,22 +235,11 @@ function buildAuditData(
     const desktopScore = getPerfScore(psiDesktop);
 
     if (mobileScore !== null) {
-      perfCriteria.push({
-        label: "Mobile Performance Score",
-        status: mobileScore >= 90 ? "pass" : mobileScore >= 50 ? "warning" : "fail",
-        value: `${mobileScore}/100`,
-        fix: mobileScore < 50 ? "Optimize images, reduce JavaScript, enable compression" : undefined,
-      });
+      perfCriteria.push({ label: "Mobile Performance Score", status: mobileScore >= 90 ? "pass" : mobileScore >= 50 ? "warning" : "fail", value: `${mobileScore}/100`, fix: mobileScore < 50 ? "Optimize images, reduce JavaScript, enable compression" : undefined });
       realSignals++;
     }
-
     if (desktopScore !== null) {
-      perfCriteria.push({
-        label: "Desktop Performance Score",
-        status: desktopScore >= 90 ? "pass" : desktopScore >= 50 ? "warning" : "fail",
-        value: `${desktopScore}/100`,
-        fix: desktopScore < 50 ? "Reduce render-blocking resources and optimize loading" : undefined,
-      });
+      perfCriteria.push({ label: "Desktop Performance Score", status: desktopScore >= 90 ? "pass" : desktopScore >= 50 ? "warning" : "fail", value: `${desktopScore}/100`, fix: desktopScore < 50 ? "Reduce render-blocking resources and optimize loading" : undefined });
       realSignals++;
     }
 
@@ -289,12 +247,7 @@ function buildAuditData(
     if (lcpAudit) {
       const lcpVal = lcpAudit.displayValue as string;
       const lcpMs = parseMs(lcpVal);
-      perfCriteria.push({
-        label: "Largest Contentful Paint (LCP)",
-        status: lcpMs !== null && lcpMs <= 2500 ? "pass" : lcpMs !== null && lcpMs <= 4000 ? "warning" : "fail",
-        value: lcpVal,
-        fix: lcpMs !== null && lcpMs > 2500 ? "Optimize server response times, preload critical resources" : undefined,
-      });
+      perfCriteria.push({ label: "Largest Contentful Paint (LCP)", status: lcpMs !== null && lcpMs <= 2500 ? "pass" : lcpMs !== null && lcpMs <= 4000 ? "warning" : "fail", value: lcpVal, fix: lcpMs !== null && lcpMs > 2500 ? "Optimize server response times, preload critical resources" : undefined });
       realSignals++;
     }
 
@@ -302,12 +255,7 @@ function buildAuditData(
     if (clsAudit) {
       const clsVal = clsAudit.displayValue as string;
       const clsNum = parseFloat(clsVal);
-      perfCriteria.push({
-        label: "Cumulative Layout Shift (CLS)",
-        status: clsNum <= 0.1 ? "pass" : clsNum <= 0.25 ? "warning" : "fail",
-        value: clsVal,
-        fix: clsNum > 0.1 ? "Add explicit width/height to images and embeds" : undefined,
-      });
+      perfCriteria.push({ label: "Cumulative Layout Shift (CLS)", status: clsNum <= 0.1 ? "pass" : clsNum <= 0.25 ? "warning" : "fail", value: clsVal, fix: clsNum > 0.1 ? "Add explicit width/height to images and embeds" : undefined });
       realSignals++;
     }
 
@@ -315,85 +263,45 @@ function buildAuditData(
     if (tbtAudit) {
       const tbtVal = tbtAudit.displayValue as string;
       const tbtMs = parseMs(tbtVal);
-      perfCriteria.push({
-        label: "Total Blocking Time (TBT)",
-        status: tbtMs !== null && tbtMs <= 200 ? "pass" : tbtMs !== null && tbtMs <= 600 ? "warning" : "fail",
-        value: tbtVal,
-        fix: tbtMs !== null && tbtMs > 200 ? "Break up long tasks, defer non-critical JavaScript" : undefined,
-      });
+      perfCriteria.push({ label: "Total Blocking Time (TBT)", status: tbtMs !== null && tbtMs <= 200 ? "pass" : tbtMs !== null && tbtMs <= 600 ? "warning" : "fail", value: tbtVal, fix: tbtMs !== null && tbtMs > 200 ? "Break up long tasks, defer non-critical JavaScript" : undefined });
       realSignals++;
     }
 
     const siAudit = getAudit(psiMobile, "speed-index") || getAudit(psiDesktop, "speed-index");
     if (siAudit) {
-      perfCriteria.push({
-        label: "Speed Index",
-        status: (siAudit.score as number) >= 0.9 ? "pass" : (siAudit.score as number) >= 0.5 ? "warning" : "fail",
-        value: siAudit.displayValue as string,
-      });
+      perfCriteria.push({ label: "Speed Index", status: (siAudit.score as number) >= 0.9 ? "pass" : (siAudit.score as number) >= 0.5 ? "warning" : "fail", value: siAudit.displayValue as string });
       realSignals++;
     }
 
     const imgOptAudit = getAudit(psiMobile, "uses-optimized-images") || getAudit(psiDesktop, "uses-optimized-images");
     if (imgOptAudit) {
-      perfCriteria.push({
-        label: "Image Optimization",
-        status: (imgOptAudit.score as number) >= 0.9 ? "pass" : "warning",
-        value: (imgOptAudit.score as number) >= 0.9 ? "Optimized" : "Needs optimization",
-        fix: (imgOptAudit.score as number) < 0.9 ? "Use WebP/AVIF, compress images, add responsive srcsets" : undefined,
-      });
+      perfCriteria.push({ label: "Image Optimization", status: (imgOptAudit.score as number) >= 0.9 ? "pass" : "warning", value: (imgOptAudit.score as number) >= 0.9 ? "Optimized" : "Needs optimization", fix: (imgOptAudit.score as number) < 0.9 ? "Use WebP/AVIF, compress images, add responsive srcsets" : undefined });
       realSignals++;
     }
 
     const unusedJs = getAudit(psiMobile, "unused-javascript") || getAudit(psiDesktop, "unused-javascript");
     if (unusedJs) {
-      perfCriteria.push({
-        label: "Unused JavaScript",
-        status: (unusedJs.score as number) >= 0.9 ? "pass" : "warning",
-        value: (unusedJs.score as number) >= 0.9 ? "Minimal" : "Excess JS detected",
-        fix: (unusedJs.score as number) < 0.9 ? "Remove unused JavaScript or use code splitting" : undefined,
-      });
+      perfCriteria.push({ label: "Unused JavaScript", status: (unusedJs.score as number) >= 0.9 ? "pass" : "warning", value: (unusedJs.score as number) >= 0.9 ? "Minimal" : "Excess JS detected", fix: (unusedJs.score as number) < 0.9 ? "Remove unused JavaScript or use code splitting" : undefined });
       realSignals++;
     }
 
     const unusedCss = getAudit(psiMobile, "unused-css-rules") || getAudit(psiDesktop, "unused-css-rules");
     if (unusedCss) {
-      perfCriteria.push({
-        label: "Unused CSS",
-        status: (unusedCss.score as number) >= 0.9 ? "pass" : "warning",
-        value: (unusedCss.score as number) >= 0.9 ? "Minimal" : "Excess CSS detected",
-        fix: (unusedCss.score as number) < 0.9 ? "Purge unused CSS rules, use critical CSS" : undefined,
-      });
+      perfCriteria.push({ label: "Unused CSS", status: (unusedCss.score as number) >= 0.9 ? "pass" : "warning", value: (unusedCss.score as number) >= 0.9 ? "Minimal" : "Excess CSS detected", fix: (unusedCss.score as number) < 0.9 ? "Purge unused CSS rules, use critical CSS" : undefined });
       realSignals++;
     }
 
-    // Calculate score from real data
     const scores = [mobileScore, desktopScore].filter((s): s is number => s !== null);
     perfScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 50;
   } else if (psiError) {
-    perfCriteria.push({
-      label: "PageSpeed Insights Analysis",
-      status: "na",
-      value: psiError || "API key required",
-    });
+    perfCriteria.push({ label: "PageSpeed Insights Analysis", status: "na", value: psiError || "API key required" });
   } else {
-    perfCriteria.push({
-      label: "PageSpeed Insights Analysis",
-      status: "na",
-      value: "Enter a Google PageSpeed API key to get real performance data",
-    });
+    perfCriteria.push({ label: "PageSpeed Insights Analysis", status: "na", value: "Enter a Google PageSpeed API key to get real performance data" });
   }
 
-  categories.push({
-    name: "Performance",
-    icon: <Gauge size={20} />,
-    score: perfScore,
-    status: getStatus(perfScore),
-    criteria: perfCriteria,
-    isReal: !!(psiMobile || psiDesktop),
-  });
+  categories.push({ name: "Performance", icon: <Gauge size={18} />, score: perfScore, status: getStatus(perfScore), criteria: perfCriteria, isReal: !!(psiMobile || psiDesktop) });
 
-  // ─── 2. On-Page SEO ───────────────────────────────────────────────────────
+  // ─── 2. On-Page SEO ─────────────────────────────────────────────────────
   const onPageCriteria: CriterionResult[] = [];
   let onPageScore = 50;
 
@@ -401,19 +309,13 @@ function buildAuditData(
     let onPagePoints = 0;
     let onPageTotal = 0;
 
-    // Title
     onPageTotal += 15;
     if (htmlSignals.title) {
       if (htmlSignals.titleLength >= 50 && htmlSignals.titleLength <= 60) {
         onPageCriteria.push({ label: "Title Tag", status: "pass", value: `"${htmlSignals.title.substring(0, 60)}${htmlSignals.title.length > 60 ? "..." : ""}" (${htmlSignals.titleLength} chars)` });
         onPagePoints += 15;
       } else {
-        onPageCriteria.push({
-          label: "Title Tag",
-          status: "warning",
-          value: `${htmlSignals.titleLength} chars (optimal: 50–60)`,
-          fix: htmlSignals.titleLength < 50 ? "Add more descriptive keywords to your title" : "Shorten your title to under 60 characters",
-        });
+        onPageCriteria.push({ label: "Title Tag", status: "warning", value: `${htmlSignals.titleLength} chars (optimal: 50-60)`, fix: htmlSignals.titleLength < 50 ? "Add more descriptive keywords to your title" : "Shorten your title to under 60 characters" });
         onPagePoints += 8;
       }
       realSignals++;
@@ -422,28 +324,21 @@ function buildAuditData(
       realSignals++;
     }
 
-    // Meta description
     onPageTotal += 15;
     if (htmlSignals.metaDesc) {
       if (htmlSignals.metaDescLength >= 150 && htmlSignals.metaDescLength <= 160) {
         onPageCriteria.push({ label: "Meta Description", status: "pass", value: `${htmlSignals.metaDescLength} chars` });
         onPagePoints += 15;
       } else {
-        onPageCriteria.push({
-          label: "Meta Description",
-          status: "warning",
-          value: `${htmlSignals.metaDescLength} chars (optimal: 150–160)`,
-          fix: htmlSignals.metaDescLength < 150 ? "Write a more detailed meta description" : "Trim your meta description to 160 chars",
-        });
+        onPageCriteria.push({ label: "Meta Description", status: "warning", value: `${htmlSignals.metaDescLength} chars (optimal: 150-160)`, fix: htmlSignals.metaDescLength < 150 ? "Write a more detailed meta description" : "Trim your meta description to 160 chars" });
         onPagePoints += 8;
       }
       realSignals++;
     } else {
-      onPageCriteria.push({ label: "Meta Description", status: "fail", value: "Missing", fix: "Add a <meta name='description'> tag with 150–160 characters" });
+      onPageCriteria.push({ label: "Meta Description", status: "fail", value: "Missing", fix: "Add a <meta name='description'> tag with 150-160 characters" });
       realSignals++;
     }
 
-    // H1
     onPageTotal += 15;
     if (htmlSignals.h1Count === 1) {
       onPageCriteria.push({ label: "H1 Tag", status: "pass", value: `"${htmlSignals.h1Content.substring(0, 60)}${htmlSignals.h1Content.length > 60 ? "..." : ""}"` });
@@ -456,7 +351,6 @@ function buildAuditData(
     }
     realSignals++;
 
-    // H2/H3
     onPageTotal += 10;
     if (htmlSignals.h2Count > 0 || htmlSignals.h3Count > 0) {
       onPageCriteria.push({ label: "Heading Structure", status: "pass", value: `${htmlSignals.h2Count} H2, ${htmlSignals.h3Count} H3` });
@@ -466,7 +360,6 @@ function buildAuditData(
     }
     realSignals++;
 
-    // Images alt
     onPageTotal += 15;
     if (htmlSignals.totalImages === 0) {
       onPageCriteria.push({ label: "Image Alt Tags", status: "pass", value: "No images found" });
@@ -475,17 +368,11 @@ function buildAuditData(
       onPageCriteria.push({ label: "Image Alt Tags", status: "pass", value: `All ${htmlSignals.totalImages} images have alt text` });
       onPagePoints += 15;
     } else {
-      onPageCriteria.push({
-        label: "Image Alt Tags",
-        status: htmlSignals.imagesNoAlt > 3 ? "fail" : "warning",
-        value: `${htmlSignals.imagesNoAlt} of ${htmlSignals.totalImages} images missing alt text`,
-        fix: "Add descriptive alt attributes to all images",
-      });
+      onPageCriteria.push({ label: "Image Alt Tags", status: htmlSignals.imagesNoAlt > 3 ? "fail" : "warning", value: `${htmlSignals.imagesNoAlt} of ${htmlSignals.totalImages} images missing alt text`, fix: "Add descriptive alt attributes to all images" });
       onPagePoints += Math.max(0, 15 - htmlSignals.imagesNoAlt * 2);
     }
     realSignals++;
 
-    // Canonical
     onPageTotal += 10;
     if (htmlSignals.canonical) {
       onPageCriteria.push({ label: "Canonical Tag", status: "pass", value: "Present" });
@@ -496,7 +383,6 @@ function buildAuditData(
     }
     realSignals++;
 
-    // Lang
     onPageTotal += 10;
     if (htmlSignals.lang) {
       onPageCriteria.push({ label: "Language Attribute", status: "pass", value: `lang="${htmlSignals.lang}"` });
@@ -512,34 +398,25 @@ function buildAuditData(
     onPageCriteria.push({ label: "HTML Analysis", status: "na", value: htmlError });
   }
 
-  categories.push({
-    name: "On-Page SEO",
-    icon: <FileText size={20} />,
-    score: onPageScore,
-    status: getStatus(onPageScore),
-    criteria: onPageCriteria,
-    isReal: !!htmlSignals,
-  });
+  categories.push({ name: "On-Page SEO", icon: <FileText size={18} />, score: onPageScore, status: getStatus(onPageScore), criteria: onPageCriteria, isReal: !!htmlSignals });
 
-  // ─── 3. Technical SEO ─────────────────────────────────────────────────────
+  // ─── 3. Technical SEO ───────────────────────────────────────────────────
   const techCriteria: CriterionResult[] = [];
   let techScore = 50;
   let techPoints = 0;
   let techTotal = 0;
 
   if (htmlSignals) {
-    // HTTPS
     techTotal += 15;
     if (htmlSignals.isHttps) {
       techCriteria.push({ label: "HTTPS", status: "pass", value: "Secure connection" });
       techPoints += 15;
     } else {
-      techCriteria.push({ label: "HTTPS", status: "fail", value: "Not using HTTPS", fix: "Migrate to HTTPS — critical for SEO and security" });
+      techCriteria.push({ label: "HTTPS", status: "fail", value: "Not using HTTPS", fix: "Migrate to HTTPS" });
       recommendations.push({ priority: "high", category: "Technical", description: "Site not using HTTPS", fix: "Install an SSL certificate and redirect all HTTP traffic to HTTPS" });
     }
     realSignals++;
 
-    // Viewport
     techTotal += 10;
     if (htmlSignals.viewport) {
       techCriteria.push({ label: "Viewport Meta", status: "pass", value: "Present" });
@@ -549,16 +426,10 @@ function buildAuditData(
     }
     realSignals++;
 
-    // Robots meta
     techTotal += 10;
     if (htmlSignals.robotsMeta) {
       const blocksIndex = htmlSignals.robotsMeta.includes("noindex");
-      techCriteria.push({
-        label: "Robots Meta",
-        status: blocksIndex ? "warning" : "pass",
-        value: htmlSignals.robotsMeta,
-        fix: blocksIndex ? "This page has noindex — remove it if you want it indexed" : undefined,
-      });
+      techCriteria.push({ label: "Robots Meta", status: blocksIndex ? "warning" : "pass", value: htmlSignals.robotsMeta, fix: blocksIndex ? "This page has noindex — remove it if you want it indexed" : undefined });
       techPoints += blocksIndex ? 5 : 10;
     } else {
       techCriteria.push({ label: "Robots Meta", status: "pass", value: "Not set (defaults to index, follow)" });
@@ -566,7 +437,6 @@ function buildAuditData(
     }
     realSignals++;
 
-    // Structured data
     techTotal += 15;
     if (htmlSignals.structuredDataCount > 0) {
       techCriteria.push({ label: "Structured Data (Schema.org)", status: "pass", value: `${htmlSignals.structuredDataCount} JSON-LD block(s) found` });
@@ -577,52 +447,32 @@ function buildAuditData(
     }
     realSignals++;
 
-    // Inline scripts/styles
     techTotal += 10;
     if (htmlSignals.inlineScripts <= 2 && htmlSignals.inlineStyles <= 1) {
       techCriteria.push({ label: "Inline Resources", status: "pass", value: `${htmlSignals.inlineScripts} inline scripts, ${htmlSignals.inlineStyles} inline styles` });
       techPoints += 10;
     } else {
-      techCriteria.push({
-        label: "Inline Resources",
-        status: "warning",
-        value: `${htmlSignals.inlineScripts} inline scripts, ${htmlSignals.inlineStyles} inline styles`,
-        fix: "Externalize inline scripts and styles for better caching",
-      });
+      techCriteria.push({ label: "Inline Resources", status: "warning", value: `${htmlSignals.inlineScripts} inline scripts, ${htmlSignals.inlineStyles} inline styles`, fix: "Externalize inline scripts and styles for better caching" });
       techPoints += 5;
     }
     realSignals++;
   }
 
-  // Render-blocking from PSI
   if (psiMobile || psiDesktop) {
     const rbAudit = getAudit(psiMobile, "render-blocking-resources") || getAudit(psiDesktop, "render-blocking-resources");
     if (rbAudit) {
       techTotal += 15;
       const rbScore = rbAudit.score as number;
-      techCriteria.push({
-        label: "Render-Blocking Resources",
-        status: rbScore >= 0.9 ? "pass" : rbScore >= 0.5 ? "warning" : "fail",
-        value: rbScore >= 0.9 ? "No significant blocking" : "Blocking resources detected",
-        fix: rbScore < 0.9 ? "Defer non-critical CSS/JS, use async loading" : undefined,
-      });
+      techCriteria.push({ label: "Render-Blocking Resources", status: rbScore >= 0.9 ? "pass" : rbScore >= 0.5 ? "warning" : "fail", value: rbScore >= 0.9 ? "No significant blocking" : "Blocking resources detected", fix: rbScore < 0.9 ? "Defer non-critical CSS/JS, use async loading" : undefined });
       techPoints += Math.round(rbScore * 15);
       realSignals++;
     }
   }
 
   techScore = techTotal > 0 ? Math.round((techPoints / techTotal) * 100) : 50;
+  categories.push({ name: "Technical SEO", icon: <Settings2 size={18} />, score: techScore, status: getStatus(techScore), criteria: techCriteria, isReal: !!(htmlSignals || psiMobile || psiDesktop) });
 
-  categories.push({
-    name: "Technical SEO",
-    icon: <Settings2 size={20} />,
-    score: techScore,
-    status: getStatus(techScore),
-    criteria: techCriteria,
-    isReal: !!(htmlSignals || psiMobile || psiDesktop),
-  });
-
-  // ─── 4. Social & Metadata ─────────────────────────────────────────────────
+  // ─── 4. Social & Metadata ──────────────────────────────────────────────
   const socialCriteria: CriterionResult[] = [];
   let socialPoints = 0;
   let socialTotal = 0;
@@ -651,17 +501,9 @@ function buildAuditData(
   }
 
   const socialScore = socialTotal > 0 ? Math.round((socialPoints / socialTotal) * 100) : 50;
+  categories.push({ name: "Social & Metadata", icon: <Share2 size={18} />, score: socialScore, status: getStatus(socialScore), criteria: socialCriteria, isReal: !!htmlSignals });
 
-  categories.push({
-    name: "Social & Metadata",
-    icon: <Share2 size={20} />,
-    score: socialScore,
-    status: getStatus(socialScore),
-    criteria: socialCriteria,
-    isReal: !!htmlSignals,
-  });
-
-  // ─── 5. Mobile & Accessibility ────────────────────────────────────────────
+  // ─── 5. Mobile & Accessibility ─────────────────────────────────────────
   const mobileCriteria: CriterionResult[] = [];
   let mobilePoints = 0;
   let mobileTotal = 0;
@@ -682,50 +524,31 @@ function buildAuditData(
   }
 
   if (psiMobile) {
-    const mobileScore = getPerfScore(psiMobile);
-    if (mobileScore !== null) {
+    const ms = getPerfScore(psiMobile);
+    if (ms !== null) {
       mobileTotal += 25;
-      mobileCriteria.push({
-        label: "Mobile Performance Score",
-        status: mobileScore >= 90 ? "pass" : mobileScore >= 50 ? "warning" : "fail",
-        value: `${mobileScore}/100`,
-      });
-      mobilePoints += Math.round(mobileScore * 0.25);
+      mobileCriteria.push({ label: "Mobile Performance Score", status: ms >= 90 ? "pass" : ms >= 50 ? "warning" : "fail", value: `${ms}/100` });
+      mobilePoints += Math.round(ms * 0.25);
       realSignals++;
     }
   }
 
   const mobileScore = mobileTotal > 0 ? Math.round((mobilePoints / mobileTotal) * 100) : 50;
+  categories.push({ name: "Mobile & Accessibility", icon: <Smartphone size={18} />, score: mobileScore, status: getStatus(mobileScore), criteria: mobileCriteria, isReal: !!(htmlSignals || psiMobile) });
 
-  categories.push({
-    name: "Mobile & Accessibility",
-    icon: <Smartphone size={20} />,
-    score: mobileScore,
-    status: getStatus(mobileScore),
-    criteria: mobileCriteria,
-    isReal: !!(htmlSignals || psiMobile),
-  });
-
-  // ─── 6. Content Quality (estimated) ───────────────────────────────────────
+  // ─── 6. Content Quality (estimated) ────────────────────────────────────
   const contentCriteria: CriterionResult[] = [];
   let contentScore = 65;
 
   if (htmlSignals) {
     const wc = htmlSignals.wordCount;
-    contentCriteria.push({
-      label: "Word Count",
-      status: wc >= 300 ? "pass" : "warning",
-      value: `~${wc} words`,
-      fix: wc < 300 ? "Add more substantive content — thin pages rank poorly" : undefined,
-    });
+    contentCriteria.push({ label: "Word Count", status: wc >= 300 ? "pass" : "warning", value: `~${wc} words`, fix: wc < 300 ? "Add more substantive content" : undefined });
     realSignals++;
-
     if (wc < 300) {
       recommendations.push({ priority: "medium", category: "Content", description: "Thin content detected", fix: `Page has ~${wc} words. Aim for 300+ words of quality content.` });
     }
   }
 
-  // Estimated signals
   const readability = Math.round(55 + seededRandom(seed, 1) * 35);
   contentCriteria.push({ label: "Readability Score (Estimated)", status: readability >= 60 ? "pass" : "warning", value: `${readability}/100` });
   estimatedSignals++;
@@ -742,16 +565,9 @@ function buildAuditData(
   if (htmlSignals && htmlSignals.wordCount >= 300) contentScore = Math.max(contentScore, 65);
   if (htmlSignals && htmlSignals.wordCount < 300) contentScore = Math.min(contentScore, 45);
 
-  categories.push({
-    name: "Content Quality",
-    icon: <BookOpen size={20} />,
-    score: contentScore,
-    status: getStatus(contentScore),
-    criteria: contentCriteria,
-    isReal: false,
-  });
+  categories.push({ name: "Content Quality", icon: <BookOpen size={18} />, score: contentScore, status: getStatus(contentScore), criteria: contentCriteria, isReal: false });
 
-  // ─── 7. Backlinks & Authority (estimated) ─────────────────────────────────
+  // ─── 7. Backlinks & Authority (estimated) ──────────────────────────────
   const backlinkCriteria: CriterionResult[] = [];
   const da = Math.round(15 + seededRandom(seed, 10) * 65);
   const backlinks = Math.round(50 + seededRandom(seed, 11) * 9950);
@@ -762,23 +578,13 @@ function buildAuditData(
   estimatedSignals += 2;
 
   const backlinkScore = da;
+  categories.push({ name: "Backlinks & Authority", icon: <Link2 size={18} />, score: backlinkScore, status: getStatus(backlinkScore), criteria: backlinkCriteria, isReal: false });
 
-  categories.push({
-    name: "Backlinks & Authority",
-    icon: <Link2 size={20} />,
-    score: backlinkScore,
-    status: getStatus(backlinkScore),
-    criteria: backlinkCriteria,
-    isReal: false,
-  });
-
-  // ─── Global Score ─────────────────────────────────────────────────────────
+  // ─── Global Score ──────────────────────────────────────────────────────
   const weights = [0.25, 0.20, 0.20, 0.10, 0.10, 0.10, 0.05];
-  const globalScore = Math.round(
-    categories.reduce((sum, cat, i) => sum + cat.score * weights[i], 0)
-  );
+  const globalScore = Math.round(categories.reduce((sum, cat, i) => sum + cat.score * weights[i], 0));
 
-  // ─── Build recommendations from fails/warnings ────────────────────────────
+  // ─── Build recommendations from fails/warnings ─────────────────────────
   categories.forEach((cat) => {
     cat.criteria.forEach((c) => {
       if (c.status === "fail" && c.fix) {
@@ -789,46 +595,13 @@ function buildAuditData(
     });
   });
 
-  // Sort recommendations: high > medium > low
   const priorityOrder = { high: 0, medium: 1, low: 2 };
   recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
   return { url, globalScore, categories, recommendations, realSignals, estimatedSignals };
 }
 
-// ─── Components ──────────────────────────────────────────────────────────────
-
-const glassStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.35)",
-  backdropFilter: "blur(24px) saturate(180%)",
-  WebkitBackdropFilter: "blur(24px) saturate(180%)",
-  border: "1px solid rgba(255, 255, 255, 0.55)",
-  borderRadius: "24px",
-  boxShadow:
-    "0 8px 32px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(0,0,0,0.02)",
-};
-
-const glassCardHover: React.CSSProperties = {
-  ...glassStyle,
-  transition: "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
-};
-
-const glassInputStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.5)",
-  backdropFilter: "blur(16px) saturate(160%)",
-  WebkitBackdropFilter: "blur(16px) saturate(160%)",
-  border: "1px solid rgba(255, 255, 255, 0.6)",
-  borderRadius: "16px",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.7)",
-};
-
-const glassInnerStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.25)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255,255,255,0.4)",
-  borderRadius: "14px",
-};
+// ─── UI Components ───────────────────────────────────────────────────────────
 
 function AnimatedScore({ value, color }: { value: number; color: string }) {
   const [display, setDisplay] = useState(0);
@@ -836,15 +609,14 @@ function AnimatedScore({ value, color }: { value: number; color: string }) {
 
   useEffect(() => {
     const start = performance.now();
-    const duration = 1200;
-    const from = 0;
+    const duration = 1400;
     const to = value;
 
     function frame(now: number) {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
+      const eased = 1 - Math.pow(1 - progress, 4);
+      setDisplay(Math.round(to * eased));
       if (progress < 1) ref.current = requestAnimationFrame(frame);
     }
 
@@ -853,14 +625,14 @@ function AnimatedScore({ value, color }: { value: number; color: string }) {
   }, [value]);
 
   return (
-    <span style={{ color, fontFamily: "var(--font-dm-mono), monospace", fontWeight: 600 }}>
+    <span style={{ color, fontFamily: "var(--font-dm-mono), monospace", fontWeight: 500 }}>
       {display}
     </span>
   );
 }
 
-function ScoreDonut({ score, size = 220 }: { score: number; size?: number }) {
-  const strokeW = 12;
+function ScoreDonut({ score, size = 200 }: { score: number; size?: number }) {
+  const strokeW = 8;
   const radius = (size - strokeW * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const color = getScoreColor(score);
@@ -869,63 +641,31 @@ function ScoreDonut({ score, size = 220 }: { score: number; size?: number }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setOffset(circumference - (score / 100) * circumference);
-    }, 100);
+    }, 200);
     return () => clearTimeout(timer);
   }, [score, circumference]);
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      {/* Outer glow */}
-      <div className="absolute inset-0 rounded-full" style={{
-        background: `radial-gradient(circle, ${color}15 0%, transparent 70%)`,
-        animation: "pulseGlow 3s ease-in-out infinite",
-        // @ts-expect-error CSS custom property
-        "--glow-color": `${color}40`,
-      }} />
-
-      <svg width={size} height={size} className="transform -rotate-90 relative z-10">
-        <defs>
-          <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={color} stopOpacity="1" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.6" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        {/* Background track */}
+      <svg width={size} height={size} className="transform -rotate-90">
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth={strokeW}
+          fill="none" stroke="#F2F2F7" strokeWidth={strokeW}
         />
-        {/* Animated score arc */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="url(#scoreGradient)" strokeWidth={strokeW}
+          fill="none" stroke={color} strokeWidth={strokeW}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          filter="url(#glow)"
-          style={{ transition: "stroke-dashoffset 1.6s cubic-bezier(0.16, 1, 0.3, 1)" }}
+          style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.16, 1, 0.3, 1)" }}
         />
       </svg>
-
-      {/* Inner glass circle */}
-      <div className="absolute inset-6 rounded-full flex flex-col items-center justify-center z-10" style={{
-        background: "rgba(255,255,255,0.3)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        border: "1px solid rgba(255,255,255,0.5)",
-        boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), 0 4px 16px rgba(0,0,0,0.04)",
-      }}>
-        <span className="text-5xl font-bold" style={{ fontFamily: "var(--font-dm-mono), monospace", color }}>
-          <AnimatedScore value={score} color={color} />
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[48px] font-light tracking-tight" style={{ color: "#1D1D1F", fontFamily: "var(--font-dm-mono), monospace" }}>
+          <AnimatedScore value={score} color="#1D1D1F" />
         </span>
-        <span className="text-xs font-medium mt-1" style={{ color: "#9CA3AF" }}>/ 100</span>
+        <span className="text-[13px] font-normal tracking-wide" style={{ color: "#86868B" }}>out of 100</span>
       </div>
     </div>
   );
@@ -934,74 +674,60 @@ function ScoreDonut({ score, size = 220 }: { score: number; size?: number }) {
 function MiniBar({ score }: { score: number }) {
   const color = getScoreColor(score);
   return (
-    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.04)" }}>
+    <div className="w-full h-[3px] rounded-full overflow-hidden" style={{ background: "#F2F2F7" }}>
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${score}%` }}
-        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-        className="h-full rounded-full relative"
-        style={{
-          background: `linear-gradient(90deg, ${color}90, ${color})`,
-          boxShadow: `0 0 8px ${color}40`,
-        }}
+        transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+        className="h-full rounded-full"
+        style={{ background: color }}
       />
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: "good" | "warning" | "critical" }) {
-  const colors = {
-    good: { bg: "rgba(52, 199, 89, 0.1)", text: "#34C759", border: "rgba(52, 199, 89, 0.2)" },
-    warning: { bg: "rgba(255, 159, 10, 0.1)", text: "#FF9F0A", border: "rgba(255, 159, 10, 0.2)" },
-    critical: { bg: "rgba(255, 69, 58, 0.1)", text: "#FF453A", border: "rgba(255, 69, 58, 0.2)" },
+  const config = {
+    good: { bg: "#F0FFF4", text: "#34C759", label: "Good" },
+    warning: { bg: "#FFFBF0", text: "#FF9F0A", label: "Needs Work" },
+    critical: { bg: "#FFF5F5", text: "#FF3B30", label: "Critical" },
   };
+  const c = config[status];
   return (
     <span
-      className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
-      style={{
-        background: colors[status].bg,
-        color: colors[status].text,
-        border: `1px solid ${colors[status].border}`,
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }}
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium"
+      style={{ background: c.bg, color: c.text }}
     >
-      {getStatusLabel(status)}
+      {c.label}
     </span>
   );
 }
 
 function CriterionRow({ c }: { c: CriterionResult }) {
   const icons = {
-    pass: <CheckCircle2 size={16} color="#34C759" />,
-    warning: <AlertTriangle size={16} color="#FF9F0A" />,
-    fail: <XCircle size={16} color="#FF453A" />,
-    estimated: <BarChart3 size={16} color="#9CA3AF" />,
-    na: <Info size={16} color="#9CA3AF" />,
+    pass: <CheckCircle2 size={15} color="#34C759" strokeWidth={1.5} />,
+    warning: <AlertTriangle size={15} color="#FF9F0A" strokeWidth={1.5} />,
+    fail: <XCircle size={15} color="#FF3B30" strokeWidth={1.5} />,
+    estimated: <BarChart3 size={15} color="#86868B" strokeWidth={1.5} />,
+    na: <Info size={15} color="#86868B" strokeWidth={1.5} />,
   };
 
   return (
-    <div className="flex items-start gap-3 py-3 group/row">
-      <div className="mt-0.5 flex-shrink-0 transition-transform duration-300 group-hover/row:scale-110">{icons[c.status]}</div>
+    <div className="flex items-start gap-3 py-2.5">
+      <div className="mt-px flex-shrink-0">{icons[c.status]}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-[13px] font-medium ${c.status === "estimated" ? "italic text-foreground-muted" : "text-foreground"}`}>
+          <span className={`text-[13px] ${c.status === "estimated" ? "text-[#86868B]" : "text-[#1D1D1F]"}`}>
             {c.label}
           </span>
           {c.value && (
-            <span className="text-[11px] px-2 py-0.5 rounded-lg" style={{
-              background: "rgba(255,255,255,0.5)",
-              border: "1px solid rgba(255,255,255,0.6)",
-              fontFamily: "var(--font-dm-mono), monospace",
-              color: "#6B6B6B",
-              backdropFilter: "blur(4px)",
-            }}>
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#F5F5F7] text-[#86868B]" style={{ fontFamily: "var(--font-dm-mono), monospace" }}>
               {c.value}
             </span>
           )}
         </div>
         {c.fix && (
-          <p className="text-xs text-foreground-secondary mt-1.5 leading-relaxed opacity-80">{c.fix}</p>
+          <p className="text-[12px] text-[#86868B] mt-1 leading-relaxed">{c.fix}</p>
         )}
       </div>
     </div>
@@ -1010,49 +736,33 @@ function CriterionRow({ c }: { c: CriterionResult }) {
 
 function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
   const [expanded, setExpanded] = useState(false);
-  const [hovered, setHovered] = useState(false);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.1 + index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      transition={{ duration: 0.5, delay: 0.08 + index * 0.06, ease: [0.25, 0.1, 0.25, 1] }}
+      className="bg-white rounded-2xl overflow-hidden transition-shadow duration-300 hover:shadow-lg"
       style={{
-        ...glassCardHover,
-        transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        boxShadow: hovered
-          ? "0 12px 40px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)"
-          : glassStyle.boxShadow,
-        borderColor: hovered ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.55)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+        border: "1px solid rgba(0,0,0,0.04)",
       }}
-      className="overflow-hidden cursor-default"
     >
       <div className="p-5 sm:p-6">
-        {/* Header row */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-2xl" style={{
-              background: "linear-gradient(135deg, rgba(124, 107, 255, 0.12), rgba(124, 107, 255, 0.04))",
-              border: "1px solid rgba(124, 107, 255, 0.1)",
-              boxShadow: "0 2px 8px rgba(124, 107, 255, 0.08)",
-            }}>
-              <span style={{ color: "#7C6BFF" }}>{cat.icon}</span>
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#F5F5F7]">
+              <span className="text-[#1D1D1F]">{cat.icon}</span>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground tracking-tight">{cat.name}</h3>
+              <h3 className="text-[14px] font-semibold text-[#1D1D1F] tracking-tight">{cat.name}</h3>
               {!cat.isReal && (
-                <span className="text-[10px] text-foreground-muted italic font-medium">Estimated</span>
+                <span className="text-[10px] text-[#86868B]">Estimated</span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <span className="text-2xl font-bold" style={{
-              fontFamily: "var(--font-dm-mono), monospace",
-              color: getScoreColor(cat.score),
-              textShadow: `0 0 20px ${getScoreColor(cat.score)}20`,
-            }}>
+            <span className="text-[22px] font-medium" style={{ fontFamily: "var(--font-dm-mono), monospace", color: getScoreColor(cat.score) }}>
               <AnimatedScore value={cat.score} color={getScoreColor(cat.score)} />
             </span>
             <StatusBadge status={cat.status} />
@@ -1063,14 +773,10 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-4 flex items-center gap-1.5 text-[13px] font-medium transition-all duration-300 group/btn"
-          style={{ color: "#7C6BFF" }}
+          className="mt-4 flex items-center gap-1 text-[13px] font-medium text-[#0071E3] transition-colors hover:text-[#0077ED]"
         >
           {expanded ? "Hide details" : "View details"}
-          <motion.span
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
             <ChevronDown size={14} />
           </motion.span>
         </button>
@@ -1082,11 +788,11 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6" style={{ borderTop: "1px solid rgba(255,255,255,0.4)" }}>
-              <div className="mt-3 space-y-0.5">
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t border-[#F2F2F7]">
+              <div className="mt-2">
                 {cat.criteria.map((c, i) => (
                   <CriterionRow key={i} c={c} />
                 ))}
@@ -1100,87 +806,72 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
 }
 
 function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
+  const completedCount = steps.filter(s => s.done).length;
+  const progress = (completedCount / steps.length) * 100;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="max-w-lg mx-auto mt-16 sm:mt-24"
-      style={glassStyle}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      className="max-w-md mx-auto mt-20 sm:mt-28"
     >
-      <div className="p-7 sm:p-9">
-        <div className="flex items-center gap-3.5 mb-7">
-          <div className="relative w-10 h-10 flex items-center justify-center rounded-2xl" style={{
-            background: "linear-gradient(135deg, rgba(124, 107, 255, 0.15), rgba(124, 107, 255, 0.05))",
-            border: "1px solid rgba(124, 107, 255, 0.12)",
-          }}>
-            <Loader2 size={20} style={{ color: "#7C6BFF", animation: "spin 1.2s linear infinite" }} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-foreground tracking-tight">Analyzing</h3>
-            <p className="text-xs text-foreground-muted">This may take a few seconds...</p>
-          </div>
+      <div className="text-center mb-10">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#F5F5F7] mb-5">
+          <Loader2 size={22} className="text-[#1D1D1F]" style={{ animation: "spin 1.5s linear infinite" }} />
         </div>
+        <h2 className="text-[22px] font-semibold text-[#1D1D1F] tracking-tight">Analyzing</h2>
+        <p className="text-[15px] text-[#86868B] mt-1">This takes a few seconds.</p>
+      </div>
 
-        {/* Progress shimmer bar */}
-        <div className="w-full h-1 rounded-full mb-6 overflow-hidden" style={{ background: "rgba(0,0,0,0.04)" }}>
-          <div className="h-full rounded-full" style={{
-            width: `${(steps.filter(s => s.done).length / steps.length) * 100}%`,
-            background: "linear-gradient(90deg, #7C6BFF, #a78bfa)",
-            boxShadow: "0 0 12px rgba(124, 107, 255, 0.4)",
-            transition: "width 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
-          }} />
-        </div>
+      <div className="w-full h-1 rounded-full bg-[#F2F2F7] mb-8 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#1D1D1F] transition-all duration-700 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-        <div className="space-y-3.5">
-          {steps.map((step, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1, duration: 0.4 }}
-              className="flex items-center gap-3 p-3 rounded-xl transition-all duration-300"
-              style={{
-                background: step.done && !step.error ? "rgba(52,199,89,0.04)" :
-                             step.error ? "rgba(255,69,58,0.04)" :
-                             i === steps.findIndex(s => !s.done) ? "rgba(124,107,255,0.04)" : "transparent",
-                border: `1px solid ${step.done && !step.error ? "rgba(52,199,89,0.1)" :
-                                      step.error ? "rgba(255,69,58,0.1)" :
-                                      i === steps.findIndex(s => !s.done) ? "rgba(124,107,255,0.1)" : "transparent"}`,
-              }}
-            >
-              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
-                {step.done ? (
-                  step.error ? (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}>
-                      <XCircle size={18} color="#FF453A" />
-                    </motion.div>
-                  ) : (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}>
-                      <CheckCircle2 size={18} color="#34C759" />
-                    </motion.div>
-                  )
+      <div className="space-y-2">
+        {steps.map((step, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: i * 0.08, duration: 0.3 }}
+            className="flex items-center gap-3 py-2.5 px-4 rounded-xl"
+            style={{
+              background: step.done && !step.error ? "rgba(52,199,89,0.04)" :
+                           step.error ? "rgba(255,59,48,0.04)" :
+                           i === steps.findIndex(s => !s.done) ? "#F5F5F7" : "transparent",
+            }}
+          >
+            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+              {step.done ? (
+                step.error ? (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                    <XCircle size={16} color="#FF3B30" strokeWidth={1.5} />
+                  </motion.div>
                 ) : (
-                  i === steps.findIndex(s => !s.done) ? (
-                    <Loader2 size={16} style={{ color: "#7C6BFF", animation: "spin 1.2s linear infinite" }} />
-                  ) : (
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: "rgba(0,0,0,0.06)" }} />
-                  )
-                )}
-              </div>
-              <span className={`text-[13px] flex-1 ${step.done ? (step.error ? "text-red" : "text-foreground") : "text-foreground-secondary"} ${i === steps.findIndex(s => !s.done) ? "font-medium" : ""}`}>
-                {step.label}
-              </span>
-              {step.error && (
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-lg" style={{
-                  background: "rgba(255,69,58,0.08)", color: "#FF453A"
-                }}>{step.error}</span>
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                    <CheckCircle2 size={16} color="#34C759" strokeWidth={1.5} />
+                  </motion.div>
+                )
+              ) : (
+                i === steps.findIndex(s => !s.done) ? (
+                  <Loader2 size={14} className="text-[#1D1D1F]" style={{ animation: "spin 1.5s linear infinite" }} />
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-[#D1D1D6]" />
+                )
               )}
-            </motion.div>
-          ))}
-        </div>
+            </div>
+            <span className={`text-[13px] flex-1 ${step.done ? (step.error ? "text-[#FF3B30]" : "text-[#1D1D1F]") : i === steps.findIndex(s => !s.done) ? "text-[#1D1D1F] font-medium" : "text-[#86868B]"}`}>
+              {step.label}
+            </span>
+            {step.error && (
+              <span className="text-[11px] font-medium text-[#FF3B30]">{step.error}</span>
+            )}
+          </motion.div>
+        ))}
       </div>
     </motion.div>
   );
@@ -1189,69 +880,63 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
 function RecommendationPanel({ recs }: { recs: Recommendation[] }) {
   if (recs.length === 0) return null;
 
-  const priorityColors = {
-    high: { bg: "rgba(255, 69, 58, 0.06)", text: "#FF453A", border: "rgba(255, 69, 58, 0.12)", glow: "rgba(255, 69, 58, 0.05)" },
-    medium: { bg: "rgba(255, 159, 10, 0.06)", text: "#FF9F0A", border: "rgba(255, 159, 10, 0.12)", glow: "rgba(255, 159, 10, 0.05)" },
-    low: { bg: "rgba(52, 199, 89, 0.06)", text: "#34C759", border: "rgba(52, 199, 89, 0.12)", glow: "rgba(52, 199, 89, 0.05)" },
+  const priorityConfig = {
+    high: { bg: "#FFF5F5", text: "#FF3B30", label: "High" },
+    medium: { bg: "#FFFBF0", text: "#FF9F0A", label: "Medium" },
+    low: { bg: "#F0FFF4", text: "#34C759", label: "Low" },
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      style={glassStyle}
-      className="mt-8"
+      transition={{ duration: 0.5, delay: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+      className="mt-6 bg-white rounded-2xl"
+      style={{
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+        border: "1px solid rgba(0,0,0,0.04)",
+      }}
     >
-      <div className="p-6 sm:p-7 md:p-9">
+      <div className="p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center w-10 h-10 rounded-2xl" style={{
-            background: "linear-gradient(135deg, rgba(124, 107, 255, 0.12), rgba(124, 107, 255, 0.04))",
-            border: "1px solid rgba(124, 107, 255, 0.1)",
-          }}>
-            <TrendingUp size={20} style={{ color: "#7C6BFF" }} />
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#F5F5F7]">
+            <TrendingUp size={18} className="text-[#1D1D1F]" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground tracking-tight">Recommendations</h3>
-            <span className="text-[11px] text-foreground-muted">{recs.length} items to improve</span>
+            <h3 className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Recommendations</h3>
+            <span className="text-[12px] text-[#86868B]">{recs.length} items to improve</span>
           </div>
         </div>
 
-        <div className="space-y-2.5">
-          {recs.slice(0, 12).map((rec, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.9 + i * 0.05, duration: 0.4 }}
-              className="flex items-start gap-3 p-4 rounded-2xl transition-all duration-300 hover:scale-[1.005]"
-              style={{
-                background: priorityColors[rec.priority].glow,
-                border: `1px solid ${priorityColors[rec.priority].border}`,
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              <span
-                className="flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg tracking-wide"
-                style={{ background: priorityColors[rec.priority].bg, color: priorityColors[rec.priority].text }}
+        <div className="space-y-2">
+          {recs.slice(0, 12).map((rec, i) => {
+            const pc = priorityConfig[rec.priority];
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 + i * 0.04, duration: 0.3 }}
+                className="flex items-start gap-3 p-4 rounded-xl border border-[#F2F2F7] hover:bg-[#FAFAFA] transition-colors duration-200"
               >
-                {rec.priority}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-lg" style={{
-                    background: "rgba(124, 107, 255, 0.06)",
-                    color: "#7C6BFF",
-                    border: "1px solid rgba(124, 107, 255, 0.08)",
-                  }}>
-                    {rec.category}
-                  </span>
-                  <span className="text-[13px] text-foreground font-medium">{rec.description}</span>
+                <span
+                  className="flex-shrink-0 mt-0.5 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md"
+                  style={{ background: pc.bg, color: pc.text }}
+                >
+                  {pc.label}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-[#F5F5F7] text-[#86868B]">
+                      {rec.category}
+                    </span>
+                    <span className="text-[13px] text-[#1D1D1F]">{rec.description}</span>
+                  </div>
+                  <p className="text-[12px] text-[#86868B] mt-1 leading-relaxed">{rec.fix}</p>
                 </div>
-                <p className="text-xs text-foreground-secondary mt-1.5 leading-relaxed">{rec.fix}</p>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </motion.div>
@@ -1274,7 +959,7 @@ export default function SEODashboard() {
     const normalizedUrl = normalizeUrl(url.trim());
 
     if (!isValidUrl(url.trim())) {
-      setUrlError("Please enter a valid URL (e.g., example.com)");
+      setUrlError("Please enter a valid URL");
       return;
     }
 
@@ -1285,10 +970,10 @@ export default function SEODashboard() {
     const hasKey = apiKey.trim().length > 0;
 
     const newSteps: LoadingStep[] = [
-      { label: "Step 1/4 — Fetching page HTML...", done: false },
-      { label: "Step 2/4 — Analyzing on-page signals...", done: false },
-      { label: `Step 3/4 — Running mobile audit...${!hasKey ? " (skipped — no API key)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
-      { label: `Step 4/4 — Running desktop audit...${!hasKey ? " (skipped — no API key)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
+      { label: "Fetching page HTML...", done: false },
+      { label: "Analyzing on-page signals...", done: false },
+      { label: `Running mobile audit...${!hasKey ? " (skipped)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
+      { label: `Running desktop audit...${!hasKey ? " (skipped)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
     ];
 
     setSteps([...newSteps]);
@@ -1300,13 +985,11 @@ export default function SEODashboard() {
     let psiError: string | null = null;
 
     try {
-      // Step 1: Fetch HTML
       try {
         const html = await fetchHTML(normalizedUrl);
         newSteps[0] = { ...newSteps[0], done: true };
         setSteps([...newSteps]);
 
-        // Step 2: Parse HTML
         htmlSignals = parseHTMLSignals(html, normalizedUrl);
         newSteps[1] = { ...newSteps[1], done: true };
         setSteps([...newSteps]);
@@ -1317,7 +1000,6 @@ export default function SEODashboard() {
         setSteps([...newSteps]);
       }
 
-      // Step 3 & 4: PSI (if API key provided)
       if (hasKey) {
         try {
           psiMobile = await fetchPSI(normalizedUrl, "mobile", apiKey.trim());
@@ -1344,12 +1026,8 @@ export default function SEODashboard() {
         psiError = "Enter a Google PageSpeed API key to get real performance data";
       }
 
-      // Build results
       const auditData = buildAuditData(normalizedUrl, htmlSignals, psiMobile, psiDesktop, htmlError, psiError);
-
-      // Brief pause for visual effect
-      await new Promise((r) => setTimeout(r, 400));
-
+      await new Promise((r) => setTimeout(r, 300));
       setAudit(auditData);
     } catch (err) {
       console.error("Audit error:", err);
@@ -1363,366 +1041,241 @@ export default function SEODashboard() {
   };
 
   return (
-    <div className="min-h-screen relative" style={{ background: "#F6F5F3" }}>
-      {/* ─── Animated background mesh ─── */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        {/* Orb 1 — Lavender top-right */}
-        <div className="absolute rounded-full" style={{
-          width: "700px", height: "700px",
-          top: "-150px", right: "-150px",
-          background: "radial-gradient(circle, rgba(179, 163, 255, 0.35) 0%, rgba(199, 183, 255, 0.15) 40%, transparent 70%)",
-          filter: "blur(100px)",
-          animation: "drift1 28s ease-in-out infinite",
-        }} />
-        {/* Orb 2 — Warm peach bottom-left */}
-        <div className="absolute rounded-full" style={{
-          width: "600px", height: "600px",
-          bottom: "-80px", left: "-80px",
-          background: "radial-gradient(circle, rgba(255, 200, 160, 0.3) 0%, rgba(255, 220, 180, 0.12) 45%, transparent 70%)",
-          filter: "blur(100px)",
-          animation: "drift2 32s ease-in-out infinite",
-        }} />
-        {/* Orb 3 — Sky blue center */}
-        <div className="absolute rounded-full" style={{
-          width: "550px", height: "550px",
-          top: "35%", left: "35%",
-          background: "radial-gradient(circle, rgba(160, 200, 255, 0.28) 0%, rgba(180, 220, 255, 0.1) 45%, transparent 70%)",
-          filter: "blur(100px)",
-          animation: "drift3 24s ease-in-out infinite",
-        }} />
-        {/* Orb 4 — Rose pink top-left */}
-        <div className="absolute rounded-full" style={{
-          width: "400px", height: "400px",
-          top: "10%", left: "10%",
-          background: "radial-gradient(circle, rgba(255, 180, 200, 0.2) 0%, transparent 65%)",
-          filter: "blur(100px)",
-          animation: "drift4 26s ease-in-out infinite",
-        }} />
-        {/* Orb 5 — Mint accent bottom-right */}
-        <div className="absolute rounded-full" style={{
-          width: "350px", height: "350px",
-          bottom: "15%", right: "10%",
-          background: "radial-gradient(circle, rgba(160, 230, 200, 0.2) 0%, transparent 65%)",
-          filter: "blur(100px)",
-          animation: "drift5 30s ease-in-out infinite",
-        }} />
-        {/* Noise / grain overlay */}
-        <div className="absolute inset-0" style={{
-          opacity: 0.025,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-          backgroundSize: "128px 128px",
-        }} />
-      </div>
+    <div className="min-h-screen bg-[#FBFBFD]">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#FBFBFD]/80 backdrop-blur-xl" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="max-w-5xl mx-auto px-5 sm:px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2.5">
+              <Globe size={18} className="text-[#1D1D1F]" />
+              <span className="font-semibold text-[#1D1D1F] text-[15px] tracking-tight">SEO Audit</span>
+            </div>
+            <button
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 hover:bg-[#F5F5F7]"
+              style={{ color: apiKey ? "#34C759" : "#86868B" }}
+            >
+              <Key size={13} />
+              <span className="hidden sm:inline">{apiKey ? "API Key Set" : "API Key"}</span>
+            </button>
+          </div>
 
-      {/* Content */}
-      <div className="relative" style={{ zIndex: 1 }}>
-        {/* ─── Header ─── */}
-        <header className="sticky top-0 z-50" style={{
-          background: "rgba(246, 245, 243, 0.55)",
-          backdropFilter: "blur(24px) saturate(180%)",
-          WebkitBackdropFilter: "blur(24px) saturate(180%)",
-          borderBottom: "1px solid rgba(255,255,255,0.5)",
-          boxShadow: "0 1px 8px rgba(0,0,0,0.03)",
-        }}>
-          <div className="max-w-6xl mx-auto px-5 sm:px-6">
-            <div className="flex items-center justify-between h-16 sm:h-[68px]">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{
-                  background: "linear-gradient(135deg, rgba(124, 107, 255, 0.15), rgba(124, 107, 255, 0.05))",
-                  border: "1px solid rgba(124, 107, 255, 0.12)",
-                  boxShadow: "0 2px 8px rgba(124, 107, 255, 0.1)",
-                }}>
-                  <Globe size={17} style={{ color: "#7C6BFF" }} />
+          <AnimatePresence>
+            {showApiKey && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                className="overflow-hidden pb-4"
+              >
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Paste your Google PageSpeed API key..."
+                    className="flex-1 px-4 py-2.5 text-[13px] text-[#1D1D1F] placeholder:text-[#C7C7CC] bg-white border border-[#E5E5EA] rounded-xl outline-none transition-all duration-200 focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/10"
+                  />
+                  <a
+                    href="https://console.cloud.google.com/apis/credentials"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 text-[12px] font-medium px-4 py-2.5 rounded-xl text-[#0071E3] bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors duration-200 flex-shrink-0"
+                  >
+                    Get free key <ExternalLink size={10} />
+                  </a>
                 </div>
-                <span className="font-bold text-foreground text-base sm:text-lg tracking-tight">SEO Audit</span>
-              </div>
-              <button
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="flex items-center gap-1.5 text-[13px] font-medium px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                <p className="text-[11px] text-[#86868B] mt-2">
+                  Free from Google Cloud Console. Enables real performance data.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div className="max-w-5xl mx-auto px-5 sm:px-6 pb-20">
+        {/* Hero */}
+        {!audit && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mt-24 sm:mt-32 md:mt-40"
+          >
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
+              className="font-semibold leading-[1.08] max-w-xl mx-auto text-[#1D1D1F]"
+              style={{ fontSize: "clamp(2rem, 5vw + 0.25rem, 3.25rem)", letterSpacing: "-0.03em" }}
+            >
+              Audit any website&apos;s SEO in seconds.
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              className="mt-4 text-[17px] max-w-md mx-auto leading-relaxed text-[#86868B]"
+            >
+              Real performance data, on-page analysis, and actionable recommendations.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="mt-10 sm:mt-12 max-w-xl mx-auto"
+            >
+              <div
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-white rounded-2xl"
                 style={{
-                  ...glassInnerStyle,
-                  background: apiKey ? "rgba(52, 199, 89, 0.08)" : "rgba(255,255,255,0.4)",
-                  color: apiKey ? "#34C759" : "#7C6BFF",
-                  borderColor: apiKey ? "rgba(52, 199, 89, 0.15)" : "rgba(255,255,255,0.5)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)",
                 }}
               >
-                <Key size={13} />
-                <span className="hidden sm:inline">{apiKey ? "API Key Set" : "Add API Key"}</span>
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showApiKey && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden pb-4"
+                <div className="flex-1 flex items-center gap-3 px-4 py-2">
+                  <Search size={18} className="text-[#C7C7CC] flex-shrink-0" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Enter a website URL..."
+                    className="w-full bg-transparent outline-none text-[#1D1D1F] placeholder:text-[#C7C7CC] text-[15px]"
+                  />
+                </div>
+                <button
+                  onClick={runAudit}
+                  disabled={!url.trim()}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[14px] font-medium text-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98]"
+                  style={{
+                    background: "#0071E3",
+                  }}
                 >
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <div className="flex-1 relative">
-                      <input
-                        type="password"
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        placeholder="Paste your Google PageSpeed API key..."
-                        className="w-full px-4 py-3 text-sm text-foreground placeholder:text-foreground-muted outline-none transition-all duration-300 focus:ring-2 focus:ring-accent/15"
-                        style={{
-                          ...glassInputStyle,
-                          background: "rgba(255,255,255,0.5)",
-                        }}
-                      />
-                    </div>
-                    <a
-                      href="https://console.cloud.google.com/apis/credentials"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-medium px-4 py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex-shrink-0"
-                      style={{ ...glassInnerStyle, color: "#7C6BFF" }}
-                    >
-                      Get free key <ExternalLink size={11} />
-                    </a>
-                  </div>
-                  <p className="text-[11px] text-foreground-muted mt-2.5 leading-relaxed">
-                    Free from Google Cloud Console. Enables real performance data via PageSpeed Insights API.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </header>
+                  Analyze <ArrowRight size={15} />
+                </button>
+              </div>
 
-        {/* Main content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-          {/* ─── Hero input section ─── */}
-          {!audit && !loading && (
+              {urlError && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-[13px] mt-3 text-left px-2 text-[#FF3B30]"
+                >
+                  {urlError}
+                </motion.p>
+              )}
+
+              {!apiKey && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="text-[12px] mt-5 text-[#86868B]"
+                >
+                  Works without an API key. Add one for full performance data.
+                </motion.p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Loading */}
+        {loading && <LoadingScreen steps={steps} />}
+
+        {/* Results */}
+        {audit && !loading && (
+          <div className="mt-10 sm:mt-12">
+            {/* Top bar */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.8 }}
-              className="text-center mt-20 sm:mt-28 md:mt-36"
+              transition={{ duration: 0.4 }}
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
             >
-              {/* Badge */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-8"
-                style={{
-                  ...glassInnerStyle,
-                  color: "#7C6BFF",
-                  animation: "floatY 4s ease-in-out infinite",
-                }}
-              >
-                <Zap size={12} />
-                Real-time SEO analysis
-              </motion.div>
-
-              {/* Title */}
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="font-bold leading-[1.08] max-w-2xl mx-auto"
-                style={{ fontSize: "clamp(2.25rem, 5vw + 0.5rem, 3.75rem)", letterSpacing: "-0.04em", color: "#1A1A1A" }}
-              >
-                Audit any website&apos;s{" "}
-                <span style={{
-                  background: "linear-gradient(135deg, #7C6BFF, #a78bfa, #7C6BFF)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  color: "transparent",
-                }}>SEO</span>{" "}
-                in seconds
-              </motion.h1>
-
-              {/* Subtitle */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-5 text-base sm:text-lg max-w-md mx-auto leading-relaxed font-light"
-                style={{ color: "#6B6B6B" }}
-              >
-                Get real performance data, on-page analysis, and actionable recommendations.
-              </motion.p>
-
-              {/* Search input */}
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-10 sm:mt-12 max-w-xl mx-auto"
-              >
-                <div
-                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-2.5"
-                  style={{
-                    ...glassStyle,
-                    borderRadius: "20px",
-                    boxShadow: "0 12px 40px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
-                    animation: "borderGlow 4s ease-in-out infinite",
-                  }}
-                >
-                  <div className="flex-1 flex items-center gap-3 px-4 py-2">
-                    <Search size={18} style={{ color: "#9CA3AF" }} className="flex-shrink-0" />
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={url}
-                      onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Enter a website URL..."
-                      className="w-full bg-transparent outline-none text-foreground placeholder:text-foreground-muted text-[15px] font-light"
-                    />
-                  </div>
-                  <button
-                    onClick={runAudit}
-                    disabled={!url.trim()}
-                    className="flex items-center justify-center gap-2 px-7 py-3.5 rounded-[14px] text-[13px] font-semibold text-white transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      background: url.trim()
-                        ? "linear-gradient(135deg, #7C6BFF, #6857e0)"
-                        : "rgba(124, 107, 255, 0.3)",
-                      boxShadow: url.trim()
-                        ? "0 4px 16px rgba(124, 107, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.2)"
-                        : "none",
-                    }}
-                  >
-                    Analyze <ArrowRight size={15} />
-                  </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Globe size={14} className="text-[#86868B]" />
+                  <span className="text-[14px] font-medium text-[#1D1D1F] truncate max-w-[300px] sm:max-w-[500px]">{audit.url}</span>
                 </div>
-
-                {urlError && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm mt-3 text-left px-3"
-                    style={{ color: "#FF453A" }}
-                  >
-                    {urlError}
-                  </motion.p>
-                )}
-
-                {!apiKey && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="text-[11px] mt-5 font-medium"
-                    style={{ color: "#9CA3AF" }}
-                  >
-                    Works without an API key — add one for full performance data.
-                  </motion.p>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* Loading */}
-          {loading && <LoadingScreen steps={steps} />}
-
-          {/* ─── Results ─── */}
-          {audit && !loading && (
-            <div className="mt-10 sm:mt-14">
-              {/* Top bar — URL + re-analyze */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10"
-              >
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{
-                      background: "rgba(124, 107, 255, 0.1)",
-                      border: "1px solid rgba(124, 107, 255, 0.08)",
-                    }}>
-                      <Globe size={13} style={{ color: "#7C6BFF" }} />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground truncate max-w-[300px] sm:max-w-[500px] tracking-tight">{audit.url}</span>
-                  </div>
-                  <p className="text-[11px] mt-1.5 ml-[34px] font-medium" style={{ color: "#9CA3AF" }}>
-                    Score based on {audit.realSignals} real signals + {audit.estimatedSignals} estimated signals
-                  </p>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    onClick={() => { setAudit(null); setTimeout(() => inputRef.current?.focus(), 100); }}
-                    className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ ...glassInnerStyle, color: "#7C6BFF" }}
-                  >
-                    <Search size={13} /> New audit
-                  </button>
-                  <button
-                    onClick={runAudit}
-                    className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-2.5 rounded-xl text-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      background: "linear-gradient(135deg, #7C6BFF, #6857e0)",
-                      boxShadow: "0 4px 14px rgba(124, 107, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                    }}
-                  >
-                    <RefreshCw size={13} /> Re-analyze
-                  </button>
-                </div>
-              </motion.div>
-
-              {/* Global Score */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  ...glassStyle,
-                  boxShadow: "0 16px 48px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
-                }}
-                className="text-center p-8 sm:p-10 md:p-12 mb-8"
-              >
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.15em] mb-8" style={{ color: "#9CA3AF" }}>
-                  Overall SEO Score
-                </h2>
-                <ScoreDonut score={audit.globalScore} size={220} />
-                <div className="mt-7 flex items-center justify-center gap-4 flex-wrap">
-                  <StatusBadge status={getStatus(audit.globalScore)} />
-                  <div className="flex items-center gap-3 text-[11px] font-medium" style={{ color: "#9CA3AF" }}>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={glassInnerStyle}>
-                      <Eye size={11} /> {audit.realSignals} real
-                    </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={glassInnerStyle}>
-                      <BarChart3 size={11} /> {audit.estimatedSignals} estimated
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Category Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                {audit.categories.map((cat, i) => (
-                  <CategoryCard key={cat.name} cat={cat} index={i} />
-                ))}
+                <p className="text-[12px] mt-1 ml-[22px] text-[#86868B]">
+                  {audit.realSignals} real + {audit.estimatedSignals} estimated signals
+                </p>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setAudit(null); setTimeout(() => inputRef.current?.focus(), 100); }}
+                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED] transition-colors duration-200"
+                >
+                  <Search size={13} /> New audit
+                </button>
+                <button
+                  onClick={runAudit}
+                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg bg-[#0071E3] text-white hover:brightness-110 transition-all duration-200"
+                >
+                  <RefreshCw size={13} /> Re-analyze
+                </button>
+              </div>
+            </motion.div>
 
-              {/* Recommendations */}
-              <RecommendationPanel recs={audit.recommendations} />
-
-              {/* Footer disclaimer */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.2 }}
-                className="mt-10 text-center"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={glassInnerStyle}>
-                  <Shield size={12} style={{ color: "#9CA3AF" }} />
-                  <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>
-                    Performance data from PageSpeed Insights. On-page data from live HTML analysis. Backlinks & some content signals are estimated.
-                  </p>
+            {/* Global Score */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+              className="text-center bg-white rounded-2xl p-10 sm:p-12 mb-6"
+              style={{
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+                border: "1px solid rgba(0,0,0,0.04)",
+              }}
+            >
+              <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-[#86868B] mb-8">
+                Overall SEO Score
+              </p>
+              <ScoreDonut score={audit.globalScore} size={200} />
+              <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+                <StatusBadge status={getStatus(audit.globalScore)} />
+                <div className="flex items-center gap-2 text-[11px] text-[#86868B]">
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#F5F5F7]">
+                    <Eye size={10} /> {audit.realSignals} real
+                  </span>
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#F5F5F7]">
+                    <BarChart3 size={10} /> {audit.estimatedSignals} estimated
+                  </span>
                 </div>
-              </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Category Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {audit.categories.map((cat, i) => (
+                <CategoryCard key={cat.name} cat={cat} index={i} />
+              ))}
             </div>
-          )}
-        </div>
+
+            {/* Recommendations */}
+            <RecommendationPanel recs={audit.recommendations} />
+
+            {/* Footer */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="mt-8 text-center"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5F5F7]">
+                <Shield size={11} className="text-[#86868B]" />
+                <p className="text-[11px] text-[#86868B]">
+                  Performance data from PageSpeed Insights. On-page data from live HTML analysis. Some signals are estimated.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );
