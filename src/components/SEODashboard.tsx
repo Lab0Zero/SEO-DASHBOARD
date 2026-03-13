@@ -23,10 +23,12 @@ import {
   ArrowRight,
   Eye,
   Shield,
-  TrendingUp,
   ExternalLink,
   Info,
 } from "lucide-react";
+import { buildActionPlan, type ActionPlan } from "./dashboard/actionPlanBuilder";
+import ActionPlanPanel from "./dashboard/ActionPlanPanel";
+import { generatePDF } from "./pdf/generatePDF";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -877,72 +879,6 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
   );
 }
 
-function RecommendationPanel({ recs }: { recs: Recommendation[] }) {
-  if (recs.length === 0) return null;
-
-  const priorityConfig = {
-    high: { bg: "#FFF5F5", text: "#FF3B30", label: "High" },
-    medium: { bg: "#FFFBF0", text: "#FF9F0A", label: "Medium" },
-    low: { bg: "#F0FFF4", text: "#34C759", label: "Low" },
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-      className="mt-6 bg-white rounded-2xl"
-      style={{
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-        border: "1px solid rgba(0,0,0,0.04)",
-      }}
-    >
-      <div className="p-6 sm:p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#F5F5F7]">
-            <TrendingUp size={18} className="text-[#1D1D1F]" />
-          </div>
-          <div>
-            <h3 className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Recommendations</h3>
-            <span className="text-[12px] text-[#86868B]">{recs.length} items to improve</span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {recs.slice(0, 12).map((rec, i) => {
-            const pc = priorityConfig[rec.priority];
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 + i * 0.04, duration: 0.3 }}
-                className="flex items-start gap-3 p-4 rounded-xl border border-[#F2F2F7] hover:bg-[#FAFAFA] transition-colors duration-200"
-              >
-                <span
-                  className="flex-shrink-0 mt-0.5 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md"
-                  style={{ background: pc.bg, color: pc.text }}
-                >
-                  {pc.label}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-[#F5F5F7] text-[#86868B]">
-                      {rec.category}
-                    </span>
-                    <span className="text-[13px] text-[#1D1D1F]">{rec.description}</span>
-                  </div>
-                  <p className="text-[12px] text-[#86868B] mt-1 leading-relaxed">{rec.fix}</p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function SEODashboard() {
@@ -952,6 +888,8 @@ export default function SEODashboard() {
   const [loading, setLoading] = useState(false);
   const [steps, setSteps] = useState<LoadingStep[]>([]);
   const [audit, setAudit] = useState<AuditData | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [urlError, setUrlError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -966,6 +904,7 @@ export default function SEODashboard() {
     setUrlError("");
     setLoading(true);
     setAudit(null);
+    setActionPlan(null);
 
     const hasKey = apiKey.trim().length > 0;
 
@@ -1027,8 +966,10 @@ export default function SEODashboard() {
       }
 
       const auditData = buildAuditData(normalizedUrl, htmlSignals, psiMobile, psiDesktop, htmlError, psiError);
+      const plan = buildActionPlan(auditData);
       await new Promise((r) => setTimeout(r, 300));
       setAudit(auditData);
+      setActionPlan(plan);
     } catch (err) {
       console.error("Audit error:", err);
     } finally {
@@ -1257,8 +1198,23 @@ export default function SEODashboard() {
               ))}
             </div>
 
-            {/* Recommendations */}
-            <RecommendationPanel recs={audit.recommendations} />
+            {/* Action Plan */}
+            {actionPlan && (
+              <ActionPlanPanel
+                actionPlan={actionPlan}
+                onDownloadPDF={async () => {
+                  setPdfLoading(true);
+                  try {
+                    await generatePDF(audit, actionPlan);
+                  } catch (err) {
+                    console.error("PDF generation failed:", err);
+                  } finally {
+                    setPdfLoading(false);
+                  }
+                }}
+                pdfLoading={pdfLoading}
+              />
+            )}
 
             {/* Footer */}
             <motion.div
