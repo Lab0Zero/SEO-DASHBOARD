@@ -799,16 +799,34 @@ function buildAuditData(
 // ─── Components ──────────────────────────────────────────────────────────────
 
 const glassStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.45)",
-  backdropFilter: "blur(20px) saturate(160%)",
-  WebkitBackdropFilter: "blur(20px) saturate(160%)",
-  border: "1px solid rgba(255, 255, 255, 0.65)",
-  borderRadius: "20px",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)",
+  background: "rgba(255, 255, 255, 0.35)",
+  backdropFilter: "blur(24px) saturate(180%)",
+  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+  border: "1px solid rgba(255, 255, 255, 0.55)",
+  borderRadius: "24px",
+  boxShadow:
+    "0 8px 32px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(0,0,0,0.02)",
+};
+
+const glassCardHover: React.CSSProperties = {
+  ...glassStyle,
+  transition: "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
 };
 
 const glassInputStyle: React.CSSProperties = {
-  ...glassStyle,
+  background: "rgba(255, 255, 255, 0.5)",
+  backdropFilter: "blur(16px) saturate(160%)",
+  WebkitBackdropFilter: "blur(16px) saturate(160%)",
+  border: "1px solid rgba(255, 255, 255, 0.6)",
+  borderRadius: "16px",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.7)",
+};
+
+const glassInnerStyle: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.25)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255,255,255,0.4)",
   borderRadius: "14px",
 };
 
@@ -841,8 +859,9 @@ function AnimatedScore({ value, color }: { value: number; color: string }) {
   );
 }
 
-function ScoreDonut({ score, size = 200 }: { score: number; size?: number }) {
-  const radius = (size - 20) / 2;
+function ScoreDonut({ score, size = 220 }: { score: number; size?: number }) {
+  const strokeW = 12;
+  const radius = (size - strokeW * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const color = getScoreColor(score);
   const [offset, setOffset] = useState(circumference);
@@ -856,25 +875,57 @@ function ScoreDonut({ score, size = 200 }: { score: number; size?: number }) {
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
+      {/* Outer glow */}
+      <div className="absolute inset-0 rounded-full" style={{
+        background: `radial-gradient(circle, ${color}15 0%, transparent 70%)`,
+        animation: "pulseGlow 3s ease-in-out infinite",
+        // @ts-expect-error CSS custom property
+        "--glow-color": `${color}40`,
+      }} />
+
+      <svg width={size} height={size} className="transform -rotate-90 relative z-10">
+        <defs>
+          <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={color} stopOpacity="1" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.6" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        {/* Background track */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="10"
+          fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth={strokeW}
         />
+        {/* Animated score arc */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke={color} strokeWidth="10"
+          fill="none" stroke="url(#scoreGradient)" strokeWidth={strokeW}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 1.4s ease-out" }}
+          filter="url(#glow)"
+          style={{ transition: "stroke-dashoffset 1.6s cubic-bezier(0.16, 1, 0.3, 1)" }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+
+      {/* Inner glass circle */}
+      <div className="absolute inset-6 rounded-full flex flex-col items-center justify-center z-10" style={{
+        background: "rgba(255,255,255,0.3)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        border: "1px solid rgba(255,255,255,0.5)",
+        boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), 0 4px 16px rgba(0,0,0,0.04)",
+      }}>
         <span className="text-5xl font-bold" style={{ fontFamily: "var(--font-dm-mono), monospace", color }}>
           <AnimatedScore value={score} color={color} />
         </span>
-        <span className="text-sm text-foreground-secondary mt-1">/ 100</span>
+        <span className="text-xs font-medium mt-1" style={{ color: "#9CA3AF" }}>/ 100</span>
       </div>
     </div>
   );
@@ -883,13 +934,16 @@ function ScoreDonut({ score, size = 200 }: { score: number; size?: number }) {
 function MiniBar({ score }: { score: number }) {
   const color = getScoreColor(score);
   return (
-    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.06)" }}>
+    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.04)" }}>
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${score}%` }}
-        transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-        className="h-full rounded-full"
-        style={{ background: color }}
+        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+        className="h-full rounded-full relative"
+        style={{
+          background: `linear-gradient(90deg, ${color}90, ${color})`,
+          boxShadow: `0 0 8px ${color}40`,
+        }}
       />
     </div>
   );
@@ -897,14 +951,20 @@ function MiniBar({ score }: { score: number }) {
 
 function StatusBadge({ status }: { status: "good" | "warning" | "critical" }) {
   const colors = {
-    good: { bg: "rgba(52, 199, 89, 0.12)", text: "#34C759" },
-    warning: { bg: "rgba(255, 159, 10, 0.12)", text: "#FF9F0A" },
-    critical: { bg: "rgba(255, 69, 58, 0.12)", text: "#FF453A" },
+    good: { bg: "rgba(52, 199, 89, 0.1)", text: "#34C759", border: "rgba(52, 199, 89, 0.2)" },
+    warning: { bg: "rgba(255, 159, 10, 0.1)", text: "#FF9F0A", border: "rgba(255, 159, 10, 0.2)" },
+    critical: { bg: "rgba(255, 69, 58, 0.1)", text: "#FF453A", border: "rgba(255, 69, 58, 0.2)" },
   };
   return (
     <span
-      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-      style={{ background: colors[status].bg, color: colors[status].text }}
+      className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
+      style={{
+        background: colors[status].bg,
+        color: colors[status].text,
+        border: `1px solid ${colors[status].border}`,
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+      }}
     >
       {getStatusLabel(status)}
     </span>
@@ -921,25 +981,27 @@ function CriterionRow({ c }: { c: CriterionResult }) {
   };
 
   return (
-    <div className="flex items-start gap-3 py-2.5">
-      <div className="mt-0.5 flex-shrink-0">{icons[c.status]}</div>
+    <div className="flex items-start gap-3 py-3 group/row">
+      <div className="mt-0.5 flex-shrink-0 transition-transform duration-300 group-hover/row:scale-110">{icons[c.status]}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-medium ${c.status === "estimated" ? "italic text-foreground-muted" : "text-foreground"}`}>
+          <span className={`text-[13px] font-medium ${c.status === "estimated" ? "italic text-foreground-muted" : "text-foreground"}`}>
             {c.label}
           </span>
           {c.value && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{
-              background: "rgba(0,0,0,0.04)",
+            <span className="text-[11px] px-2 py-0.5 rounded-lg" style={{
+              background: "rgba(255,255,255,0.5)",
+              border: "1px solid rgba(255,255,255,0.6)",
               fontFamily: "var(--font-dm-mono), monospace",
               color: "#6B6B6B",
+              backdropFilter: "blur(4px)",
             }}>
               {c.value}
             </span>
           )}
         </div>
         {c.fix && (
-          <p className="text-xs text-foreground-secondary mt-1 leading-relaxed">{c.fix}</p>
+          <p className="text-xs text-foreground-secondary mt-1.5 leading-relaxed opacity-80">{c.fix}</p>
         )}
       </div>
     </div>
@@ -948,30 +1010,49 @@ function CriterionRow({ c }: { c: CriterionResult }) {
 
 function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 + index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
-      style={glassStyle}
-      className="overflow-hidden"
+      transition={{ duration: 0.6, delay: 0.1 + index * 0.1, ease: [0.16, 1, 0.3, 1] }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...glassCardHover,
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hovered
+          ? "0 12px 40px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)"
+          : glassStyle.boxShadow,
+        borderColor: hovered ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.55)",
+      }}
+      className="overflow-hidden cursor-default"
     >
       <div className="p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-3">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(124, 107, 255, 0.1)" }}>
+            <div className="flex items-center justify-center w-10 h-10 rounded-2xl" style={{
+              background: "linear-gradient(135deg, rgba(124, 107, 255, 0.12), rgba(124, 107, 255, 0.04))",
+              border: "1px solid rgba(124, 107, 255, 0.1)",
+              boxShadow: "0 2px 8px rgba(124, 107, 255, 0.08)",
+            }}>
               <span style={{ color: "#7C6BFF" }}>{cat.icon}</span>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">{cat.name}</h3>
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">{cat.name}</h3>
               {!cat.isReal && (
-                <span className="text-[10px] text-foreground-muted italic">Estimated</span>
+                <span className="text-[10px] text-foreground-muted italic font-medium">Estimated</span>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-dm-mono), monospace", color: getScoreColor(cat.score) }}>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl font-bold" style={{
+              fontFamily: "var(--font-dm-mono), monospace",
+              color: getScoreColor(cat.score),
+              textShadow: `0 0 20px ${getScoreColor(cat.score)}20`,
+            }}>
               <AnimatedScore value={cat.score} color={getScoreColor(cat.score)} />
             </span>
             <StatusBadge status={cat.status} />
@@ -982,11 +1063,16 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
 
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-4 flex items-center gap-1.5 text-sm font-medium transition-colors"
+          className="mt-4 flex items-center gap-1.5 text-[13px] font-medium transition-all duration-300 group/btn"
           style={{ color: "#7C6BFF" }}
         >
           {expanded ? "Hide details" : "View details"}
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <motion.span
+            animate={{ rotate: expanded ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronDown size={14} />
+          </motion.span>
         </button>
       </div>
 
@@ -996,11 +1082,11 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t" style={{ borderColor: "rgba(0,0,0,0.06)" }}>
-              <div className="mt-3 divide-y" style={{ borderColor: "rgba(0,0,0,0.04)" }}>
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6" style={{ borderTop: "1px solid rgba(255,255,255,0.4)" }}>
+              <div className="mt-3 space-y-0.5">
                 {cat.criteria.map((c, i) => (
                   <CriterionRow key={i} c={c} />
                 ))}
@@ -1016,55 +1102,83 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
 function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 30, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="max-w-lg mx-auto mt-16 sm:mt-24"
       style={glassStyle}
     >
-      <div className="p-6 sm:p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="relative">
-            <Loader2 size={24} className="text-accent" style={{ animation: "spin 1s linear infinite" }} />
+      <div className="p-7 sm:p-9">
+        <div className="flex items-center gap-3.5 mb-7">
+          <div className="relative w-10 h-10 flex items-center justify-center rounded-2xl" style={{
+            background: "linear-gradient(135deg, rgba(124, 107, 255, 0.15), rgba(124, 107, 255, 0.05))",
+            border: "1px solid rgba(124, 107, 255, 0.12)",
+          }}>
+            <Loader2 size={20} style={{ color: "#7C6BFF", animation: "spin 1.2s linear infinite" }} />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">Analyzing...</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground tracking-tight">Analyzing</h3>
+            <p className="text-xs text-foreground-muted">This may take a few seconds...</p>
+          </div>
         </div>
-        <div className="space-y-4">
+
+        {/* Progress shimmer bar */}
+        <div className="w-full h-1 rounded-full mb-6 overflow-hidden" style={{ background: "rgba(0,0,0,0.04)" }}>
+          <div className="h-full rounded-full" style={{
+            width: `${(steps.filter(s => s.done).length / steps.length) * 100}%`,
+            background: "linear-gradient(90deg, #7C6BFF, #a78bfa)",
+            boxShadow: "0 0 12px rgba(124, 107, 255, 0.4)",
+            transition: "width 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
+          }} />
+        </div>
+
+        <div className="space-y-3.5">
           {steps.map((step, i) => (
-            <div key={i} className="flex items-center gap-3">
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1, duration: 0.4 }}
+              className="flex items-center gap-3 p-3 rounded-xl transition-all duration-300"
+              style={{
+                background: step.done && !step.error ? "rgba(52,199,89,0.04)" :
+                             step.error ? "rgba(255,69,58,0.04)" :
+                             i === steps.findIndex(s => !s.done) ? "rgba(124,107,255,0.04)" : "transparent",
+                border: `1px solid ${step.done && !step.error ? "rgba(52,199,89,0.1)" :
+                                      step.error ? "rgba(255,69,58,0.1)" :
+                                      i === steps.findIndex(s => !s.done) ? "rgba(124,107,255,0.1)" : "transparent"}`,
+              }}
+            >
               <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
                 {step.done ? (
                   step.error ? (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                    >
-                      <XCircle size={20} color="#FF453A" />
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                      <XCircle size={18} color="#FF453A" />
                     </motion.div>
                   ) : (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                    >
-                      <CheckCircle2 size={20} color="#34C759" />
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                      <CheckCircle2 size={18} color="#34C759" />
                     </motion.div>
                   )
                 ) : (
                   i === steps.findIndex(s => !s.done) ? (
-                    <Loader2 size={18} className="text-accent" style={{ animation: "spin 1s linear infinite" }} />
+                    <Loader2 size={16} style={{ color: "#7C6BFF", animation: "spin 1.2s linear infinite" }} />
                   ) : (
-                    <div className="w-4 h-4 rounded-full" style={{ background: "rgba(0,0,0,0.08)" }} />
+                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: "rgba(0,0,0,0.06)" }} />
                   )
                 )}
               </div>
-              <span className={`text-sm ${step.done ? (step.error ? "text-red" : "text-foreground") : "text-foreground-secondary"} ${i === steps.findIndex(s => !s.done) ? "font-medium" : ""}`}>
+              <span className={`text-[13px] flex-1 ${step.done ? (step.error ? "text-red" : "text-foreground") : "text-foreground-secondary"} ${i === steps.findIndex(s => !s.done) ? "font-medium" : ""}`}>
                 {step.label}
               </span>
               {step.error && (
-                <span className="text-xs text-red ml-auto">{step.error}</span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-lg" style={{
+                  background: "rgba(255,69,58,0.08)", color: "#FF453A"
+                }}>{step.error}</span>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -1076,53 +1190,67 @@ function RecommendationPanel({ recs }: { recs: Recommendation[] }) {
   if (recs.length === 0) return null;
 
   const priorityColors = {
-    high: { bg: "rgba(255, 69, 58, 0.1)", text: "#FF453A", border: "rgba(255, 69, 58, 0.2)" },
-    medium: { bg: "rgba(255, 159, 10, 0.1)", text: "#FF9F0A", border: "rgba(255, 159, 10, 0.2)" },
-    low: { bg: "rgba(52, 199, 89, 0.1)", text: "#34C759", border: "rgba(52, 199, 89, 0.2)" },
+    high: { bg: "rgba(255, 69, 58, 0.06)", text: "#FF453A", border: "rgba(255, 69, 58, 0.12)", glow: "rgba(255, 69, 58, 0.05)" },
+    medium: { bg: "rgba(255, 159, 10, 0.06)", text: "#FF9F0A", border: "rgba(255, 159, 10, 0.12)", glow: "rgba(255, 159, 10, 0.05)" },
+    low: { bg: "rgba(52, 199, 89, 0.06)", text: "#34C759", border: "rgba(52, 199, 89, 0.12)", glow: "rgba(52, 199, 89, 0.05)" },
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.8 }}
+      transition={{ duration: 0.7, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
       style={glassStyle}
       className="mt-8"
     >
-      <div className="p-5 sm:p-6 md:p-8">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(124, 107, 255, 0.1)" }}>
+      <div className="p-6 sm:p-7 md:p-9">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center justify-center w-10 h-10 rounded-2xl" style={{
+            background: "linear-gradient(135deg, rgba(124, 107, 255, 0.12), rgba(124, 107, 255, 0.04))",
+            border: "1px solid rgba(124, 107, 255, 0.1)",
+          }}>
             <TrendingUp size={20} style={{ color: "#7C6BFF" }} />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">Recommendations</h3>
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.06)", color: "#6B6B6B" }}>
-            {recs.length} items
-          </span>
+          <div>
+            <h3 className="text-base font-semibold text-foreground tracking-tight">Recommendations</h3>
+            <span className="text-[11px] text-foreground-muted">{recs.length} items to improve</span>
+          </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {recs.slice(0, 12).map((rec, i) => (
-            <div
+            <motion.div
               key={i}
-              className="flex items-start gap-3 p-3.5 rounded-xl"
-              style={{ background: "rgba(0,0,0,0.02)", border: `1px solid ${priorityColors[rec.priority].border}` }}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.9 + i * 0.05, duration: 0.4 }}
+              className="flex items-start gap-3 p-4 rounded-2xl transition-all duration-300 hover:scale-[1.005]"
+              style={{
+                background: priorityColors[rec.priority].glow,
+                border: `1px solid ${priorityColors[rec.priority].border}`,
+                backdropFilter: "blur(4px)",
+              }}
             >
               <span
-                className="flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                className="flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg tracking-wide"
                 style={{ background: priorityColors[rec.priority].bg, color: priorityColors[rec.priority].text }}
               >
                 {rec.priority}
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: "rgba(124, 107, 255, 0.08)", color: "#7C6BFF" }}>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-lg" style={{
+                    background: "rgba(124, 107, 255, 0.06)",
+                    color: "#7C6BFF",
+                    border: "1px solid rgba(124, 107, 255, 0.08)",
+                  }}>
                     {rec.category}
                   </span>
-                  <span className="text-sm text-foreground">{rec.description}</span>
+                  <span className="text-[13px] text-foreground font-medium">{rec.description}</span>
                 </div>
-                <p className="text-xs text-foreground-secondary mt-1">{rec.fix}</p>
+                <p className="text-xs text-foreground-secondary mt-1.5 leading-relaxed">{rec.fix}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -1236,66 +1364,90 @@ export default function SEODashboard() {
 
   return (
     <div className="min-h-screen relative" style={{ background: "#F6F5F3" }}>
-      {/* Animated background orbs */}
+      {/* ─── Animated background mesh ─── */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: "600px", height: "600px",
-            top: "-100px", right: "-100px",
-            background: "radial-gradient(circle, rgba(199, 183, 255, 0.35) 0%, transparent 70%)",
-            filter: "blur(120px)",
-            animation: "drift1 25s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: "500px", height: "500px",
-            bottom: "-50px", left: "-50px",
-            background: "radial-gradient(circle, rgba(255, 220, 180, 0.3) 0%, transparent 70%)",
-            filter: "blur(120px)",
-            animation: "drift2 30s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: "450px", height: "450px",
-            top: "40%", left: "40%",
-            background: "radial-gradient(circle, rgba(180, 220, 255, 0.3) 0%, transparent 70%)",
-            filter: "blur(120px)",
-            animation: "drift3 22s ease-in-out infinite",
-          }}
-        />
+        {/* Orb 1 — Lavender top-right */}
+        <div className="absolute rounded-full" style={{
+          width: "700px", height: "700px",
+          top: "-150px", right: "-150px",
+          background: "radial-gradient(circle, rgba(179, 163, 255, 0.35) 0%, rgba(199, 183, 255, 0.15) 40%, transparent 70%)",
+          filter: "blur(100px)",
+          animation: "drift1 28s ease-in-out infinite",
+        }} />
+        {/* Orb 2 — Warm peach bottom-left */}
+        <div className="absolute rounded-full" style={{
+          width: "600px", height: "600px",
+          bottom: "-80px", left: "-80px",
+          background: "radial-gradient(circle, rgba(255, 200, 160, 0.3) 0%, rgba(255, 220, 180, 0.12) 45%, transparent 70%)",
+          filter: "blur(100px)",
+          animation: "drift2 32s ease-in-out infinite",
+        }} />
+        {/* Orb 3 — Sky blue center */}
+        <div className="absolute rounded-full" style={{
+          width: "550px", height: "550px",
+          top: "35%", left: "35%",
+          background: "radial-gradient(circle, rgba(160, 200, 255, 0.28) 0%, rgba(180, 220, 255, 0.1) 45%, transparent 70%)",
+          filter: "blur(100px)",
+          animation: "drift3 24s ease-in-out infinite",
+        }} />
+        {/* Orb 4 — Rose pink top-left */}
+        <div className="absolute rounded-full" style={{
+          width: "400px", height: "400px",
+          top: "10%", left: "10%",
+          background: "radial-gradient(circle, rgba(255, 180, 200, 0.2) 0%, transparent 65%)",
+          filter: "blur(100px)",
+          animation: "drift4 26s ease-in-out infinite",
+        }} />
+        {/* Orb 5 — Mint accent bottom-right */}
+        <div className="absolute rounded-full" style={{
+          width: "350px", height: "350px",
+          bottom: "15%", right: "10%",
+          background: "radial-gradient(circle, rgba(160, 230, 200, 0.2) 0%, transparent 65%)",
+          filter: "blur(100px)",
+          animation: "drift5 30s ease-in-out infinite",
+        }} />
+        {/* Noise / grain overlay */}
+        <div className="absolute inset-0" style={{
+          opacity: 0.025,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "128px 128px",
+        }} />
       </div>
 
       {/* Content */}
       <div className="relative" style={{ zIndex: 1 }}>
-        {/* Header / API Key bar */}
+        {/* ─── Header ─── */}
         <header className="sticky top-0 z-50" style={{
-          background: "rgba(246, 245, 243, 0.7)",
-          backdropFilter: "blur(20px) saturate(160%)",
-          WebkitBackdropFilter: "blur(20px) saturate(160%)",
-          borderBottom: "1px solid rgba(0,0,0,0.05)",
+          background: "rgba(246, 245, 243, 0.55)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          borderBottom: "1px solid rgba(255,255,255,0.5)",
+          boxShadow: "0 1px 8px rgba(0,0,0,0.03)",
         }}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="flex items-center justify-between h-14 sm:h-16">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(124, 107, 255, 0.12)" }}>
-                  <Globe size={18} style={{ color: "#7C6BFF" }} />
+          <div className="max-w-6xl mx-auto px-5 sm:px-6">
+            <div className="flex items-center justify-between h-16 sm:h-[68px]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{
+                  background: "linear-gradient(135deg, rgba(124, 107, 255, 0.15), rgba(124, 107, 255, 0.05))",
+                  border: "1px solid rgba(124, 107, 255, 0.12)",
+                  boxShadow: "0 2px 8px rgba(124, 107, 255, 0.1)",
+                }}>
+                  <Globe size={17} style={{ color: "#7C6BFF" }} />
                 </div>
-                <span className="font-bold text-foreground text-base sm:text-lg">SEO Audit</span>
+                <span className="font-bold text-foreground text-base sm:text-lg tracking-tight">SEO Audit</span>
               </div>
               <button
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl transition-all"
+                className="flex items-center gap-1.5 text-[13px] font-medium px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
-                  background: apiKey ? "rgba(52, 199, 89, 0.1)" : "rgba(124, 107, 255, 0.08)",
+                  ...glassInnerStyle,
+                  background: apiKey ? "rgba(52, 199, 89, 0.08)" : "rgba(255,255,255,0.4)",
                   color: apiKey ? "#34C759" : "#7C6BFF",
+                  borderColor: apiKey ? "rgba(52, 199, 89, 0.15)" : "rgba(255,255,255,0.5)",
                 }}
               >
-                <Key size={14} />
+                <Key size={13} />
                 <span className="hidden sm:inline">{apiKey ? "API Key Set" : "Add API Key"}</span>
               </button>
             </div>
@@ -1306,7 +1458,7 @@ export default function SEODashboard() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   className="overflow-hidden pb-4"
                 >
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -1316,10 +1468,10 @@ export default function SEODashboard() {
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder="Paste your Google PageSpeed API key..."
-                        className="w-full px-4 py-2.5 text-sm text-foreground placeholder:text-foreground-muted outline-none"
+                        className="w-full px-4 py-3 text-sm text-foreground placeholder:text-foreground-muted outline-none transition-all duration-300 focus:ring-2 focus:ring-accent/15"
                         style={{
                           ...glassInputStyle,
-                          background: "rgba(255,255,255,0.6)",
+                          background: "rgba(255,255,255,0.5)",
                         }}
                       />
                     </div>
@@ -1327,13 +1479,13 @@ export default function SEODashboard() {
                       href="https://console.cloud.google.com/apis/credentials"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors flex-shrink-0"
-                      style={{ color: "#7C6BFF" }}
+                      className="flex items-center gap-1.5 text-xs font-medium px-4 py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex-shrink-0"
+                      style={{ ...glassInnerStyle, color: "#7C6BFF" }}
                     >
-                      Get free key <ExternalLink size={12} />
+                      Get free key <ExternalLink size={11} />
                     </a>
                   </div>
-                  <p className="text-xs text-foreground-muted mt-2">
+                  <p className="text-[11px] text-foreground-muted mt-2.5 leading-relaxed">
                     Free from Google Cloud Console. Enables real performance data via PageSpeed Insights API.
                   </p>
                 </motion.div>
@@ -1344,33 +1496,73 @@ export default function SEODashboard() {
 
         {/* Main content */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-          {/* Hero input section */}
+          {/* ─── Hero input section ─── */}
           {!audit && !loading && (
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-              className="text-center mt-16 sm:mt-24 md:mt-32"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mt-20 sm:mt-28 md:mt-36"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6" style={{ background: "rgba(124, 107, 255, 0.08)", color: "#7C6BFF" }}>
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-8"
+                style={{
+                  ...glassInnerStyle,
+                  color: "#7C6BFF",
+                  animation: "floatY 4s ease-in-out infinite",
+                }}
+              >
                 <Zap size={12} />
                 Real-time SEO analysis
-              </div>
+              </motion.div>
 
-              <h1 className="font-bold leading-tight max-w-2xl mx-auto" style={{ fontSize: "clamp(2rem, 5vw + 0.5rem, 3.5rem)", letterSpacing: "-0.03em", color: "#1A1A1A" }}>
-                Audit any website&apos;s SEO in seconds
-              </h1>
+              {/* Title */}
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="font-bold leading-[1.08] max-w-2xl mx-auto"
+                style={{ fontSize: "clamp(2.25rem, 5vw + 0.5rem, 3.75rem)", letterSpacing: "-0.04em", color: "#1A1A1A" }}
+              >
+                Audit any website&apos;s{" "}
+                <span style={{
+                  background: "linear-gradient(135deg, #7C6BFF, #a78bfa, #7C6BFF)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  color: "transparent",
+                }}>SEO</span>{" "}
+                in seconds
+              </motion.h1>
 
-              <p className="mt-4 text-base sm:text-lg max-w-lg mx-auto leading-relaxed" style={{ color: "#6B6B6B" }}>
+              {/* Subtitle */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-5 text-base sm:text-lg max-w-md mx-auto leading-relaxed font-light"
+                style={{ color: "#6B6B6B" }}
+              >
                 Get real performance data, on-page analysis, and actionable recommendations.
-              </p>
+              </motion.p>
 
-              <div className="mt-8 sm:mt-10 max-w-xl mx-auto">
+              {/* Search input */}
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-10 sm:mt-12 max-w-xl mx-auto"
+              >
                 <div
-                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-2 sm:p-2"
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-2.5"
                   style={{
                     ...glassStyle,
-                    borderRadius: "18px",
+                    borderRadius: "20px",
+                    boxShadow: "0 12px 40px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
+                    animation: "borderGlow 4s ease-in-out infinite",
                   }}
                 >
                   <div className="flex-1 flex items-center gap-3 px-4 py-2">
@@ -1382,19 +1574,23 @@ export default function SEODashboard() {
                       onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
                       onKeyDown={handleKeyDown}
                       placeholder="Enter a website URL..."
-                      className="w-full bg-transparent outline-none text-foreground placeholder:text-foreground-muted text-base"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-foreground-muted text-[15px] font-light"
                     />
                   </div>
                   <button
                     onClick={runAudit}
                     disabled={!url.trim()}
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-7 py-3.5 rounded-[14px] text-[13px] font-semibold text-white transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
                     style={{
-                      background: url.trim() ? "#7C6BFF" : "rgba(124, 107, 255, 0.4)",
-                      boxShadow: url.trim() ? "0 4px 14px rgba(124, 107, 255, 0.35)" : "none",
+                      background: url.trim()
+                        ? "linear-gradient(135deg, #7C6BFF, #6857e0)"
+                        : "rgba(124, 107, 255, 0.3)",
+                      boxShadow: url.trim()
+                        ? "0 4px 16px rgba(124, 107, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.2)"
+                        : "none",
                     }}
                   >
-                    Analyze <ArrowRight size={16} />
+                    Analyze <ArrowRight size={15} />
                   </button>
                 </div>
 
@@ -1402,7 +1598,7 @@ export default function SEODashboard() {
                   <motion.p
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-sm mt-3 text-left px-2"
+                    className="text-sm mt-3 text-left px-3"
                     style={{ color: "#FF453A" }}
                   >
                     {urlError}
@@ -1410,74 +1606,91 @@ export default function SEODashboard() {
                 )}
 
                 {!apiKey && (
-                  <p className="text-xs mt-4" style={{ color: "#9CA3AF" }}>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    className="text-[11px] mt-5 font-medium"
+                    style={{ color: "#9CA3AF" }}
+                  >
                     Works without an API key — add one for full performance data.
-                  </p>
+                  </motion.p>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
           {/* Loading */}
           {loading && <LoadingScreen steps={steps} />}
 
-          {/* Results */}
+          {/* ─── Results ─── */}
           {audit && !loading && (
-            <div className="mt-8 sm:mt-12">
+            <div className="mt-10 sm:mt-14">
               {/* Top bar — URL + re-analyze */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10"
               >
                 <div>
-                  <div className="flex items-center gap-2">
-                    <Globe size={16} style={{ color: "#7C6BFF" }} />
-                    <span className="text-sm font-medium text-foreground truncate max-w-[300px] sm:max-w-[500px]">{audit.url}</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{
+                      background: "rgba(124, 107, 255, 0.1)",
+                      border: "1px solid rgba(124, 107, 255, 0.08)",
+                    }}>
+                      <Globe size={13} style={{ color: "#7C6BFF" }} />
+                    </div>
+                    <span className="text-sm font-semibold text-foreground truncate max-w-[300px] sm:max-w-[500px] tracking-tight">{audit.url}</span>
                   </div>
-                  <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[11px] mt-1.5 ml-[34px] font-medium" style={{ color: "#9CA3AF" }}>
                     Score based on {audit.realSignals} real signals + {audit.estimatedSignals} estimated signals
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <button
                     onClick={() => { setAudit(null); setTimeout(() => inputRef.current?.focus(), 100); }}
-                    className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl transition-all"
-                    style={{ background: "rgba(124, 107, 255, 0.08)", color: "#7C6BFF" }}
+                    className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ ...glassInnerStyle, color: "#7C6BFF" }}
                   >
-                    <Search size={14} /> New audit
+                    <Search size={13} /> New audit
                   </button>
                   <button
                     onClick={runAudit}
-                    className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl text-white transition-all"
-                    style={{ background: "#7C6BFF" }}
+                    className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-2.5 rounded-xl text-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      background: "linear-gradient(135deg, #7C6BFF, #6857e0)",
+                      boxShadow: "0 4px 14px rgba(124, 107, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                    }}
                   >
-                    <RefreshCw size={14} /> Re-analyze
+                    <RefreshCw size={13} /> Re-analyze
                   </button>
                 </div>
               </motion.div>
 
               {/* Global Score */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-                style={glassStyle}
-                className="text-center p-6 sm:p-8 md:p-10 mb-8"
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  ...glassStyle,
+                  boxShadow: "0 16px 48px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.85)",
+                }}
+                className="text-center p-8 sm:p-10 md:p-12 mb-8"
               >
-                <h2 className="text-sm font-semibold uppercase tracking-widest mb-6" style={{ color: "#6B6B6B" }}>
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.15em] mb-8" style={{ color: "#9CA3AF" }}>
                   Overall SEO Score
                 </h2>
-                <ScoreDonut score={audit.globalScore} size={200} />
-                <div className="mt-5 flex items-center justify-center gap-4 flex-wrap">
+                <ScoreDonut score={audit.globalScore} size={220} />
+                <div className="mt-7 flex items-center justify-center gap-4 flex-wrap">
                   <StatusBadge status={getStatus(audit.globalScore)} />
-                  <div className="flex items-center gap-4 text-xs" style={{ color: "#9CA3AF" }}>
-                    <span className="flex items-center gap-1">
-                      <Eye size={12} /> {audit.realSignals} real
+                  <div className="flex items-center gap-3 text-[11px] font-medium" style={{ color: "#9CA3AF" }}>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={glassInnerStyle}>
+                      <Eye size={11} /> {audit.realSignals} real
                     </span>
-                    <span className="flex items-center gap-1">
-                      <BarChart3 size={12} /> {audit.estimatedSignals} estimated
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={glassInnerStyle}>
+                      <BarChart3 size={11} /> {audit.estimatedSignals} estimated
                     </span>
                   </div>
                 </div>
@@ -1493,17 +1706,19 @@ export default function SEODashboard() {
               {/* Recommendations */}
               <RecommendationPanel recs={audit.recommendations} />
 
-              {/* Footer */}
+              {/* Footer disclaimer */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="mt-8 text-center"
+                transition={{ delay: 1.2 }}
+                className="mt-10 text-center"
               >
-                <p className="text-xs" style={{ color: "#9CA3AF" }}>
-                  Performance data from Google PageSpeed Insights API. On-page data from live HTML analysis.
-                  Backlinks & some content signals are estimated.
-                </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl" style={glassInnerStyle}>
+                  <Shield size={12} style={{ color: "#9CA3AF" }} />
+                  <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>
+                    Performance data from PageSpeed Insights. On-page data from live HTML analysis. Backlinks & some content signals are estimated.
+                  </p>
+                </div>
               </motion.div>
             </div>
           )}

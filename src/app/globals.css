@@ -19,6 +19,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -29,43 +30,59 @@ body {
   min-height: 100vh;
 }
 
-/* Animated background orbs */
+/* ─── Animated background orbs ─── */
 @keyframes drift1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(80px, -60px) scale(1.1); }
-  50% { transform: translate(-40px, 80px) scale(0.95); }
-  75% { transform: translate(60px, 40px) scale(1.05); }
+  20% { transform: translate(120px, -80px) scale(1.15); }
+  40% { transform: translate(-60px, 100px) scale(0.9); }
+  60% { transform: translate(80px, 60px) scale(1.08); }
+  80% { transform: translate(-100px, -40px) scale(0.95); }
 }
 
 @keyframes drift2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(-60px, 80px) scale(1.08); }
-  50% { transform: translate(80px, -40px) scale(0.92); }
-  75% { transform: translate(-80px, -60px) scale(1.12); }
+  20% { transform: translate(-80px, 100px) scale(1.12); }
+  40% { transform: translate(100px, -60px) scale(0.88); }
+  60% { transform: translate(-100px, -80px) scale(1.15); }
+  80% { transform: translate(60px, 80px) scale(0.92); }
 }
 
 @keyframes drift3 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(60px, 60px) scale(1.1); }
-  66% { transform: translate(-80px, -40px) scale(0.9); }
+  25% { transform: translate(80px, 80px) scale(1.12); }
+  50% { transform: translate(-100px, -50px) scale(0.88); }
+  75% { transform: translate(40px, -80px) scale(1.06); }
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes drift4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  30% { transform: translate(-70px, -90px) scale(1.1); }
+  60% { transform: translate(90px, 50px) scale(0.9); }
 }
 
-@keyframes countUp {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes drift5 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(50px, -70px) scale(1.08) rotate(2deg); }
+  66% { transform: translate(-60px, 60px) scale(0.92) rotate(-2deg); }
 }
 
-@keyframes checkPop {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+/* ─── Grain / noise overlay ─── */
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  30% { transform: translate(3%, -15%); }
+  50% { transform: translate(12%, 9%); }
+  70% { transform: translate(9%, 4%); }
+  90% { transform: translate(-1%, 7%); }
 }
 
+/* ─── Pulse glow for score ─── */
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--glow-color, rgba(124,107,255,0.3))); }
+  50% { filter: drop-shadow(0 0 20px var(--glow-color, rgba(124,107,255,0.5))); }
+}
+
+/* ─── Shimmer for loading ─── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -76,8 +93,24 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Scrollbar styling */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(255,255,255,0.5); }
+  50% { border-color: rgba(124, 107, 255, 0.25); }
+}
+
+/* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(124, 107, 255, 0.2);
+  color: #1A1A1A;
+}
