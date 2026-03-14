@@ -12,16 +12,18 @@ import {
   ArrowRight,
   AlertCircle,
   Loader2,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import type { ActionPlan, ActionItem } from "./actionPlanBuilder";
 
 // ─── Priority config ─────────────────────────────────────────────────────────
 
 const PRIORITY_CONFIG = {
-  critical: { label: "Critical", color: "#FF3B30", bg: "#FFF5F5" },
-  high: { label: "High", color: "#FF9F0A", bg: "#FFFBF0" },
-  medium: { label: "Medium", color: "#0071E3", bg: "#F0F5FF" },
-  low: { label: "Low", color: "#34C759", bg: "#F0FFF4" },
+  critical: { label: "Critical", color: "#FF3B30", bg: "rgba(255,59,48,0.08)" },
+  high: { label: "High", color: "#FF9F0A", bg: "rgba(255,159,10,0.08)" },
+  medium: { label: "Medium", color: "#0071E3", bg: "rgba(0,113,227,0.08)" },
+  low: { label: "Low", color: "#34C759", bg: "rgba(52,199,89,0.08)" },
 };
 
 const DIFFICULTY_CONFIG = {
@@ -42,7 +44,7 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.03 * index, duration: 0.3 }}
-      className="border border-[#F2F2F7] rounded-xl overflow-hidden hover:bg-[#FAFAFA] transition-colors duration-200"
+      className="border border-white/20 rounded-xl overflow-hidden hover:bg-white/15 transition-colors duration-200"
     >
       {/* Collapsed header */}
       <button
@@ -57,7 +59,7 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
             >
               {pc.label}
             </span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F5F5F7] text-[#86868B]">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/30 text-[#86868B]">
               {item.category}
             </span>
             <span className="text-[10px] font-medium text-[#86868B]">
@@ -69,6 +71,12 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
             >
               {dc.label}
             </span>
+            {item.estimatedTime && (
+              <span className="text-[10px] font-medium text-[#86868B] flex items-center gap-0.5">
+                <Clock size={8} />
+                ~{item.estimatedTime}
+              </span>
+            )}
           </div>
           <p className="text-[14px] font-medium text-[#1D1D1F] leading-snug">{item.title}</p>
           <p className="text-[12px] text-[#86868B] mt-0.5 truncate">{item.description}</p>
@@ -92,7 +100,7 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
             transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-4 sm:px-5 pb-5 space-y-4 border-t border-[#F2F2F7] pt-4">
+            <div className="px-4 sm:px-5 pb-5 space-y-4 border-t border-white/20 pt-4">
               {/* Impact */}
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -111,7 +119,7 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
                 <ol className="space-y-1.5">
                   {item.steps.map((step, i) => (
                     <li key={i} className="flex items-start gap-2.5">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#F5F5F7] text-[#86868B] text-[11px] font-medium flex items-center justify-center mt-px">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-white/40 text-[#86868B] text-[11px] font-medium flex items-center justify-center mt-px">
                         {i + 1}
                       </span>
                       <span className="text-[13px] text-[#424245] leading-relaxed">{step}</span>
@@ -122,7 +130,7 @@ function ActionItemCard({ item, index }: { item: ActionItem; index: number }) {
 
               {/* Automatable */}
               {item.automatable && item.automatableNote && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#F0F5FF] border border-[#E0EAFF]">
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-blue-50/40 border border-blue-100/40 backdrop-blur-sm">
                   <Bot size={14} className="text-[#0071E3] flex-shrink-0 mt-0.5" />
                   <div>
                     <span className="text-[11px] font-semibold text-[#0071E3]">Automatable with Claude Code</span>
@@ -170,6 +178,19 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
     low: items.filter((i) => i.priority === "low").length,
   };
 
+  // Quick wins: easy + critical/high priority
+  const quickWins = items.filter(
+    (i) => i.difficulty === "easy" && (i.priority === "critical" || i.priority === "high")
+  );
+
+  // Score gain per priority for stacked bar
+  const gainByPriority = {
+    critical: items.filter((i) => i.priority === "critical").reduce((s, i) => s + i.expectedScoreGain, 0),
+    high: items.filter((i) => i.priority === "high").reduce((s, i) => s + i.expectedScoreGain, 0),
+    medium: items.filter((i) => i.priority === "medium").reduce((s, i) => s + i.expectedScoreGain, 0),
+    low: items.filter((i) => i.priority === "low").reduce((s, i) => s + i.expectedScoreGain, 0),
+  };
+
   let globalIndex = 0;
 
   return (
@@ -177,17 +198,13 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className="mt-6 bg-white rounded-2xl"
-      style={{
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-        border: "1px solid rgba(0,0,0,0.04)",
-      }}
+      className="mt-6 glass-card rounded-2xl"
     >
       <div className="p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#F5F5F7]">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/40">
               <Zap size={18} className="text-[#1D1D1F]" />
             </div>
             <div>
@@ -200,7 +217,7 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
         </div>
 
         {/* Score projection */}
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-[#F5F5F7] mb-6">
+        <div className="flex items-center gap-4 p-4 rounded-xl bg-white/30 backdrop-blur-sm mb-4">
           <div className="flex items-center gap-3">
             <div className="text-center">
               <p className="text-[24px] font-medium text-[#1D1D1F]" style={{ fontFamily: "var(--font-dm-mono), monospace" }}>
@@ -223,6 +240,68 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
             </span>
           </div>
         </div>
+
+        {/* Incremental score bar */}
+        {totalPotentialGain > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center h-3 rounded-full overflow-hidden bg-white/20">
+              {(["critical", "high", "medium", "low"] as const).map((p) => {
+                const gain = gainByPriority[p];
+                if (gain === 0) return null;
+                const widthPct = (gain / totalPotentialGain) * 100;
+                return (
+                  <motion.div
+                    key={p}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${widthPct}%` }}
+                    transition={{ duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    className="h-full"
+                    style={{ background: PRIORITY_CONFIG[p].color }}
+                    title={`${PRIORITY_CONFIG[p].label}: +${gain} pts`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+              {(["critical", "high", "medium", "low"] as const).map((p) => {
+                if (gainByPriority[p] === 0) return null;
+                return (
+                  <span key={p} className="text-[10px] text-[#86868B] flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ background: PRIORITY_CONFIG[p].color }} />
+                    {PRIORITY_CONFIG[p].label} +{gainByPriority[p]}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Wins */}
+        {quickWins.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50/30 border border-amber-200/30 backdrop-blur-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={14} className="text-amber-500" />
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-amber-600">Quick Wins</span>
+              <span className="text-[10px] text-[#86868B]">Easy fixes with high impact</span>
+            </div>
+            <div className="space-y-2">
+              {quickWins.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] text-[#1D1D1F] truncate">{item.title}</span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[11px] font-medium text-[#34C759]">+{item.expectedScoreGain} pts</span>
+                    {item.estimatedTime && (
+                      <span className="text-[10px] text-[#86868B] flex items-center gap-0.5">
+                        <Clock size={8} />
+                        {item.estimatedTime}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Priority summary bar */}
         <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -253,7 +332,7 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
                   <h4 className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: pc.color }}>
                     {pc.label} Priority
                   </h4>
-                  <div className="flex-1 h-px bg-[#F2F2F7]" />
+                  <div className="flex-1 h-px bg-white/20" />
                 </div>
                 <div className="space-y-2">
                   {group.items.map((item) => (
@@ -266,7 +345,7 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
         </div>
 
         {/* Download PDF button */}
-        <div className="mt-8 pt-6 border-t border-[#F2F2F7]">
+        <div className="mt-8 pt-6 border-t border-white/20">
           <button
             onClick={onDownloadPDF}
             disabled={pdfLoading}

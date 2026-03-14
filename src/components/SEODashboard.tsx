@@ -183,6 +183,34 @@ function parseHTMLSignals(html: string, url: string) {
 
   const isHttps = url.startsWith("https://");
 
+  // New signals for expanded analysis
+  const hasCharset = !!(doc.querySelector('meta[charset]') || doc.querySelector('meta[http-equiv="Content-Type"]'));
+
+  let hostname = "";
+  try { hostname = new URL(url).hostname; } catch { /* ignore */ }
+  const allLinks = doc.querySelectorAll("a[href]");
+  let internalLinkCount = 0;
+  let externalLinkCount = 0;
+  allLinks.forEach((a) => {
+    const href = a.getAttribute("href") || "";
+    if (href.startsWith("/") || href.startsWith("#") || href.includes(hostname)) {
+      internalLinkCount++;
+    } else if (href.startsWith("http")) {
+      externalLinkCount++;
+    }
+  });
+
+  const totalPageSize = html.length;
+  const textContent = bodyText.replace(/\s+/g, " ").trim();
+  const contentToHtmlRatio = totalPageSize > 0 ? (textContent.length / totalPageSize) * 100 : 0;
+
+  // Heading density: headings per 300 words
+  const totalHeadings = h1s.length + h2s.length + h3s.length;
+  const headingDensity = wordCount > 0 ? totalHeadings / (wordCount / 300) : 0;
+
+  // Check if title has keyword-like capitalized words (not generic)
+  const titleHasKeyword = title.length > 0 && /[A-Z][a-z]{2,}/.test(title) && !(/^(Home|Welcome|Page|Untitled|Document)$/i.test(title.trim()));
+
   return {
     title, titleLength: title.length, metaDesc, metaDescLength: metaDesc.length,
     h1Count: h1s.length, h1Content: h1s[0]?.textContent?.trim().substring(0, 100) || "",
@@ -191,6 +219,8 @@ function parseHTMLSignals(html: string, url: string) {
     hasFavicon: !!favicon, totalImages: imagesAll.length, imagesNoAlt,
     structuredDataCount: structuredData.length, inlineScripts: inlineScripts.length,
     inlineStyles: inlineStyles.length, wordCount, isHttps,
+    hasCharset, internalLinkCount, externalLinkCount, totalPageSize,
+    contentToHtmlRatio, headingDensity, titleHasKeyword,
   };
 }
 
@@ -202,7 +232,9 @@ function buildAuditData(
   psiMobile: Record<string, unknown> | null,
   psiDesktop: Record<string, unknown> | null,
   htmlError: string | null,
-  psiError: string | null
+  psiError: string | null,
+  hasRobotsTxt: boolean = false,
+  hasSitemapXml: boolean = false
 ): AuditData {
   const categories: CategoryResult[] = [];
   const recommendations: Recommendation[] = [];
@@ -316,6 +348,9 @@ function buildAuditData(
       if (htmlSignals.titleLength >= 50 && htmlSignals.titleLength <= 60) {
         onPageCriteria.push({ label: "Title Tag", status: "pass", value: `"${htmlSignals.title.substring(0, 60)}${htmlSignals.title.length > 60 ? "..." : ""}" (${htmlSignals.titleLength} chars)` });
         onPagePoints += 15;
+      } else if (htmlSignals.titleLength < 30) {
+        onPageCriteria.push({ label: "Title Tag", status: "fail", value: `${htmlSignals.titleLength} chars (too short, optimal: 50-60)`, fix: "Your title is too short. Add descriptive keywords to reach 50-60 characters" });
+        onPagePoints += 3;
       } else {
         onPageCriteria.push({ label: "Title Tag", status: "warning", value: `${htmlSignals.titleLength} chars (optimal: 50-60)`, fix: htmlSignals.titleLength < 50 ? "Add more descriptive keywords to your title" : "Shorten your title to under 60 characters" });
         onPagePoints += 8;
@@ -328,16 +363,19 @@ function buildAuditData(
 
     onPageTotal += 15;
     if (htmlSignals.metaDesc) {
-      if (htmlSignals.metaDescLength >= 150 && htmlSignals.metaDescLength <= 160) {
+      if (htmlSignals.metaDescLength >= 140 && htmlSignals.metaDescLength <= 160) {
         onPageCriteria.push({ label: "Meta Description", status: "pass", value: `${htmlSignals.metaDescLength} chars` });
         onPagePoints += 15;
+      } else if (htmlSignals.metaDescLength < 100) {
+        onPageCriteria.push({ label: "Meta Description", status: "fail", value: `${htmlSignals.metaDescLength} chars (too short, optimal: 140-160)`, fix: "Your meta description is too short to be effective. Write a compelling description of 140-160 characters" });
+        onPagePoints += 3;
       } else {
-        onPageCriteria.push({ label: "Meta Description", status: "warning", value: `${htmlSignals.metaDescLength} chars (optimal: 150-160)`, fix: htmlSignals.metaDescLength < 150 ? "Write a more detailed meta description" : "Trim your meta description to 160 chars" });
+        onPageCriteria.push({ label: "Meta Description", status: "warning", value: `${htmlSignals.metaDescLength} chars (optimal: 140-160)`, fix: htmlSignals.metaDescLength < 140 ? "Write a more detailed meta description" : "Trim your meta description to 160 chars" });
         onPagePoints += 8;
       }
       realSignals++;
     } else {
-      onPageCriteria.push({ label: "Meta Description", status: "fail", value: "Missing", fix: "Add a <meta name='description'> tag with 150-160 characters" });
+      onPageCriteria.push({ label: "Meta Description", status: "fail", value: "Missing", fix: "Add a <meta name='description'> tag with 140-160 characters" });
       realSignals++;
     }
 
@@ -354,9 +392,12 @@ function buildAuditData(
     realSignals++;
 
     onPageTotal += 10;
-    if (htmlSignals.h2Count > 0 || htmlSignals.h3Count > 0) {
+    if (htmlSignals.h2Count >= 2) {
       onPageCriteria.push({ label: "Heading Structure", status: "pass", value: `${htmlSignals.h2Count} H2, ${htmlSignals.h3Count} H3` });
       onPagePoints += 10;
+    } else if (htmlSignals.h2Count === 1 || htmlSignals.h3Count > 0) {
+      onPageCriteria.push({ label: "Heading Structure", status: "warning", value: `${htmlSignals.h2Count} H2, ${htmlSignals.h3Count} H3 (aim for 2+ H2s)`, fix: "Add more H2 subheadings to improve content structure and SEO" });
+      onPagePoints += 5;
     } else {
       onPageCriteria.push({ label: "Heading Structure", status: "fail", value: "No H2/H3 found", fix: "Add H2 and H3 tags to structure your content" });
     }
@@ -370,7 +411,7 @@ function buildAuditData(
       onPageCriteria.push({ label: "Image Alt Tags", status: "pass", value: `All ${htmlSignals.totalImages} images have alt text` });
       onPagePoints += 15;
     } else {
-      onPageCriteria.push({ label: "Image Alt Tags", status: htmlSignals.imagesNoAlt > 3 ? "fail" : "warning", value: `${htmlSignals.imagesNoAlt} of ${htmlSignals.totalImages} images missing alt text`, fix: "Add descriptive alt attributes to all images" });
+      onPageCriteria.push({ label: "Image Alt Tags", status: htmlSignals.imagesNoAlt > 1 ? "fail" : "warning", value: `${htmlSignals.imagesNoAlt} of ${htmlSignals.totalImages} images missing alt text`, fix: "Add descriptive alt attributes to all images" });
       onPagePoints += Math.max(0, 15 - htmlSignals.imagesNoAlt * 2);
     }
     realSignals++;
@@ -391,6 +432,41 @@ function buildAuditData(
       onPagePoints += 10;
     } else {
       onPageCriteria.push({ label: "Language Attribute", status: "warning", value: "Missing", fix: "Add lang attribute to <html> tag" });
+      onPagePoints += 3;
+    }
+    realSignals++;
+
+    // New: Internal Links
+    onPageTotal += 10;
+    if (htmlSignals.internalLinkCount >= 3) {
+      onPageCriteria.push({ label: "Internal Links", status: "pass", value: `${htmlSignals.internalLinkCount} internal links` });
+      onPagePoints += 10;
+    } else if (htmlSignals.internalLinkCount > 0) {
+      onPageCriteria.push({ label: "Internal Links", status: "warning", value: `Only ${htmlSignals.internalLinkCount} internal link(s) (aim for 3+)`, fix: "Add more internal links to improve site navigation and crawlability" });
+      onPagePoints += 4;
+    } else {
+      onPageCriteria.push({ label: "Internal Links", status: "fail", value: "No internal links found", fix: "Add internal links to other relevant pages on your site" });
+    }
+    realSignals++;
+
+    // New: Heading Density
+    onPageTotal += 8;
+    if (htmlSignals.headingDensity >= 1) {
+      onPageCriteria.push({ label: "Heading Density", status: "pass", value: `${htmlSignals.headingDensity.toFixed(1)} headings per 300 words` });
+      onPagePoints += 8;
+    } else {
+      onPageCriteria.push({ label: "Heading Density", status: "warning", value: `${htmlSignals.headingDensity.toFixed(1)} headings per 300 words (low)`, fix: "Add more headings to break up content — aim for at least 1 heading per 300 words" });
+      onPagePoints += 3;
+    }
+    realSignals++;
+
+    // New: Keyword in Title
+    onPageTotal += 8;
+    if (htmlSignals.titleHasKeyword) {
+      onPageCriteria.push({ label: "Keyword in Title", status: "pass", value: "Title appears to contain target keywords" });
+      onPagePoints += 8;
+    } else {
+      onPageCriteria.push({ label: "Keyword in Title", status: "warning", value: "Title may lack target keywords", fix: "Include your primary keyword in the page title for better rankings" });
       onPagePoints += 3;
     }
     realSignals++;
@@ -471,6 +547,53 @@ function buildAuditData(
     }
   }
 
+  // New: Robots.txt
+  techTotal += 10;
+  if (hasRobotsTxt) {
+    techCriteria.push({ label: "Robots.txt", status: "pass", value: "Present" });
+    techPoints += 10;
+  } else {
+    techCriteria.push({ label: "Robots.txt", status: "fail", value: "Missing", fix: "Create a robots.txt file to control how search engines crawl your site" });
+  }
+  realSignals++;
+
+  // New: Sitemap.xml
+  techTotal += 10;
+  if (hasSitemapXml) {
+    techCriteria.push({ label: "Sitemap.xml", status: "pass", value: "Present" });
+    techPoints += 10;
+  } else {
+    techCriteria.push({ label: "Sitemap.xml", status: "fail", value: "Missing", fix: "Create and submit a sitemap.xml to help search engines discover your pages" });
+  }
+  realSignals++;
+
+  // New: Character Encoding
+  if (htmlSignals) {
+    techTotal += 8;
+    if (htmlSignals.hasCharset) {
+      techCriteria.push({ label: "Character Encoding", status: "pass", value: "charset declared" });
+      techPoints += 8;
+    } else {
+      techCriteria.push({ label: "Character Encoding", status: "warning", value: "Missing charset declaration", fix: "Add <meta charset='UTF-8'> to your <head>" });
+      techPoints += 2;
+    }
+    realSignals++;
+
+    // New: Page Size
+    techTotal += 10;
+    const pageSizeKB = Math.round(htmlSignals.totalPageSize / 1024);
+    if (pageSizeKB < 200) {
+      techCriteria.push({ label: "Page Size", status: "pass", value: `${pageSizeKB} KB` });
+      techPoints += 10;
+    } else if (pageSizeKB < 500) {
+      techCriteria.push({ label: "Page Size", status: "warning", value: `${pageSizeKB} KB (aim for <200 KB)`, fix: "Reduce page size by compressing images, minifying CSS/JS, and removing unnecessary code" });
+      techPoints += 5;
+    } else {
+      techCriteria.push({ label: "Page Size", status: "fail", value: `${pageSizeKB} KB (too heavy)`, fix: "Your page is very large. Optimize images, enable compression, and remove unused resources" });
+    }
+    realSignals++;
+  }
+
   techScore = techTotal > 0 ? Math.round((techPoints / techTotal) * 100) : 50;
   categories.push({ name: "Technical SEO", icon: <Settings2 size={18} />, score: techScore, status: getStatus(techScore), criteria: techCriteria, isReal: !!(htmlSignals || psiMobile || psiDesktop) });
 
@@ -544,15 +667,32 @@ function buildAuditData(
 
   if (htmlSignals) {
     const wc = htmlSignals.wordCount;
-    contentCriteria.push({ label: "Word Count", status: wc >= 300 ? "pass" : "warning", value: `~${wc} words`, fix: wc < 300 ? "Add more substantive content" : undefined });
-    realSignals++;
-    if (wc < 300) {
-      recommendations.push({ priority: "medium", category: "Content", description: "Thin content detected", fix: `Page has ~${wc} words. Aim for 300+ words of quality content.` });
+    if (wc >= 500) {
+      contentCriteria.push({ label: "Word Count", status: "pass", value: `~${wc} words` });
+    } else if (wc >= 200) {
+      contentCriteria.push({ label: "Word Count", status: "warning", value: `~${wc} words (aim for 500+)`, fix: "Add more substantive content to improve topical authority" });
+    } else {
+      contentCriteria.push({ label: "Word Count", status: "fail", value: `~${wc} words (too thin)`, fix: "Your page has very little content. Add at least 500 words of quality, relevant content" });
     }
+    realSignals++;
+    if (wc < 500) {
+      recommendations.push({ priority: wc < 200 ? "high" : "medium", category: "Content", description: "Thin content detected", fix: `Page has ~${wc} words. Aim for 500+ words of quality content.` });
+    }
+
+    // New: Content-to-HTML Ratio
+    const ratio = htmlSignals.contentToHtmlRatio;
+    if (ratio >= 10) {
+      contentCriteria.push({ label: "Content-to-HTML Ratio", status: "pass", value: `${ratio.toFixed(1)}%` });
+    } else if (ratio >= 5) {
+      contentCriteria.push({ label: "Content-to-HTML Ratio", status: "warning", value: `${ratio.toFixed(1)}% (low, aim for 10%+)`, fix: "Your text-to-code ratio is low. Add more visible content and reduce unnecessary HTML/CSS/JS" });
+    } else {
+      contentCriteria.push({ label: "Content-to-HTML Ratio", status: "fail", value: `${ratio.toFixed(1)}% (very low)`, fix: "Extremely low content ratio. The page is mostly code with very little readable content" });
+    }
+    realSignals++;
   }
 
   const readability = Math.round(55 + seededRandom(seed, 1) * 35);
-  contentCriteria.push({ label: "Readability Score (Estimated)", status: readability >= 60 ? "pass" : "warning", value: `${readability}/100` });
+  contentCriteria.push({ label: "Readability Score (Estimated)", status: readability >= 70 ? "pass" : "warning", value: `${readability}/100`, fix: readability < 70 ? "Simplify language, use shorter sentences, and break up long paragraphs" : undefined });
   estimatedSignals++;
 
   const freshness = seededRandom(seed, 2) > 0.4;
@@ -564,8 +704,9 @@ function buildAuditData(
   estimatedSignals++;
 
   contentScore = Math.round(50 + seededRandom(seed, 4) * 40);
-  if (htmlSignals && htmlSignals.wordCount >= 300) contentScore = Math.max(contentScore, 65);
-  if (htmlSignals && htmlSignals.wordCount < 300) contentScore = Math.min(contentScore, 45);
+  if (htmlSignals && htmlSignals.wordCount >= 500) contentScore = Math.max(contentScore, 65);
+  if (htmlSignals && htmlSignals.wordCount < 200) contentScore = Math.min(contentScore, 35);
+  else if (htmlSignals && htmlSignals.wordCount < 500) contentScore = Math.min(contentScore, 50);
 
   categories.push({ name: "Content Quality", icon: <BookOpen size={18} />, score: contentScore, status: getStatus(contentScore), criteria: contentCriteria, isReal: false });
 
@@ -574,7 +715,7 @@ function buildAuditData(
   const da = Math.round(15 + seededRandom(seed, 10) * 65);
   const backlinks = Math.round(50 + seededRandom(seed, 11) * 9950);
 
-  backlinkCriteria.push({ label: "Domain Authority (Estimated)", status: da >= 40 ? "pass" : da >= 20 ? "warning" : "fail", value: `${da}/100` });
+  backlinkCriteria.push({ label: "Domain Authority (Estimated)", status: da >= 50 ? "pass" : da >= 25 ? "warning" : "fail", value: `${da}/100` });
   backlinkCriteria.push({ label: "Estimated Backlinks", status: backlinks >= 500 ? "pass" : backlinks >= 100 ? "warning" : "fail", value: backlinks.toLocaleString() });
   backlinkCriteria.push({ label: "Data Source", status: "estimated", value: "Connect Ahrefs or Moz API for real data" });
   estimatedSignals += 2;
@@ -723,7 +864,7 @@ function CriterionRow({ c }: { c: CriterionResult }) {
             {c.label}
           </span>
           {c.value && (
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#F5F5F7] text-[#86868B]" style={{ fontFamily: "var(--font-dm-mono), monospace" }}>
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/30 text-[#86868B]" style={{ fontFamily: "var(--font-dm-mono), monospace" }}>
               {c.value}
             </span>
           )}
@@ -744,16 +885,12 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.08 + index * 0.06, ease: [0.25, 0.1, 0.25, 1] }}
-      className="bg-white rounded-2xl overflow-hidden transition-shadow duration-300 hover:shadow-lg"
-      style={{
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-        border: "1px solid rgba(0,0,0,0.04)",
-      }}
+      className="glass-card rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:bg-white/70"
     >
       <div className="p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#F5F5F7]">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/40">
               <span className="text-[#1D1D1F]">{cat.icon}</span>
             </div>
             <div>
@@ -793,7 +930,7 @@ function CategoryCard({ cat, index }: { cat: CategoryResult; index: number }) {
             transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t border-[#F2F2F7]">
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t border-white/20">
               <div className="mt-2">
                 {cat.criteria.map((c, i) => (
                   <CriterionRow key={i} c={c} />
@@ -819,14 +956,14 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
       className="max-w-md mx-auto mt-20 sm:mt-28"
     >
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#F5F5F7] mb-5">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/40 mb-5">
           <Loader2 size={22} className="text-[#1D1D1F]" style={{ animation: "spin 1.5s linear infinite" }} />
         </div>
         <h2 className="text-[22px] font-semibold text-[#1D1D1F] tracking-tight">Analyzing</h2>
         <p className="text-[15px] text-[#86868B] mt-1">This takes a few seconds.</p>
       </div>
 
-      <div className="w-full h-1 rounded-full bg-[#F2F2F7] mb-8 overflow-hidden">
+      <div className="w-full h-1 rounded-full bg-white/20 mb-8 overflow-hidden">
         <div
           className="h-full rounded-full bg-[#1D1D1F] transition-all duration-700 ease-out"
           style={{ width: `${progress}%` }}
@@ -842,9 +979,9 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
             transition={{ delay: i * 0.08, duration: 0.3 }}
             className="flex items-center gap-3 py-2.5 px-4 rounded-xl"
             style={{
-              background: step.done && !step.error ? "rgba(52,199,89,0.04)" :
-                           step.error ? "rgba(255,59,48,0.04)" :
-                           i === steps.findIndex(s => !s.done) ? "#F5F5F7" : "transparent",
+              background: step.done && !step.error ? "rgba(52,199,89,0.06)" :
+                           step.error ? "rgba(255,59,48,0.06)" :
+                           i === steps.findIndex(s => !s.done) ? "rgba(255,255,255,0.35)" : "transparent",
             }}
           >
             <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
@@ -911,6 +1048,7 @@ export default function SEODashboard() {
     const newSteps: LoadingStep[] = [
       { label: "Fetching page HTML...", done: false },
       { label: "Analyzing on-page signals...", done: false },
+      { label: "Checking robots.txt & sitemap.xml...", done: false },
       { label: `Running mobile audit...${!hasKey ? " (skipped)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
       { label: `Running desktop audit...${!hasKey ? " (skipped)" : ""}`, done: !hasKey, error: !hasKey ? "No API key" : undefined },
     ];
@@ -922,6 +1060,8 @@ export default function SEODashboard() {
     let psiMobile: Record<string, unknown> | null = null;
     let psiDesktop: Record<string, unknown> | null = null;
     let psiError: string | null = null;
+    let hasRobotsTxt = false;
+    let hasSitemapXml = false;
 
     try {
       try {
@@ -939,33 +1079,53 @@ export default function SEODashboard() {
         setSteps([...newSteps]);
       }
 
+      // Check robots.txt and sitemap.xml
+      try {
+        const origin = new URL(normalizedUrl).origin;
+        const proxyBase = "https://api.allorigins.win/raw?url=";
+        const [robotsRes, sitemapRes] = await Promise.allSettled([
+          fetch(proxyBase + encodeURIComponent(`${origin}/robots.txt`)),
+          fetch(proxyBase + encodeURIComponent(`${origin}/sitemap.xml`)),
+        ]);
+        if (robotsRes.status === "fulfilled" && robotsRes.value.ok) {
+          const text = await robotsRes.value.text();
+          hasRobotsTxt = text.toLowerCase().includes("user-agent");
+        }
+        if (sitemapRes.status === "fulfilled" && sitemapRes.value.ok) {
+          const text = await sitemapRes.value.text();
+          hasSitemapXml = text.toLowerCase().includes("<url") || text.toLowerCase().includes("<sitemap");
+        }
+      } catch { /* ignore */ }
+      newSteps[2] = { ...newSteps[2], done: true };
+      setSteps([...newSteps]);
+
       if (hasKey) {
         try {
           psiMobile = await fetchPSI(normalizedUrl, "mobile", apiKey.trim());
-          newSteps[2] = { ...newSteps[2], done: true };
+          newSteps[3] = { ...newSteps[3], done: true };
           setSteps([...newSteps]);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Unknown error";
           psiError = message;
-          newSteps[2] = { ...newSteps[2], done: true, error: message.substring(0, 40) };
+          newSteps[3] = { ...newSteps[3], done: true, error: message.substring(0, 40) };
           setSteps([...newSteps]);
         }
 
         try {
           psiDesktop = await fetchPSI(normalizedUrl, "desktop", apiKey.trim());
-          newSteps[3] = { ...newSteps[3], done: true };
+          newSteps[4] = { ...newSteps[4], done: true };
           setSteps([...newSteps]);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : "Unknown error";
           if (!psiError) psiError = message;
-          newSteps[3] = { ...newSteps[3], done: true, error: message.substring(0, 40) };
+          newSteps[4] = { ...newSteps[4], done: true, error: message.substring(0, 40) };
           setSteps([...newSteps]);
         }
       } else {
         psiError = "Enter a Google PageSpeed API key to get real performance data";
       }
 
-      const auditData = buildAuditData(normalizedUrl, htmlSignals, psiMobile, psiDesktop, htmlError, psiError);
+      const auditData = buildAuditData(normalizedUrl, htmlSignals, psiMobile, psiDesktop, htmlError, psiError, hasRobotsTxt, hasSitemapXml);
       const plan = buildActionPlan(auditData);
       await new Promise((r) => setTimeout(r, 300));
       setAudit(auditData);
@@ -982,9 +1142,19 @@ export default function SEODashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FBFBFD]">
+    <div className="min-h-screen relative">
+      {/* Background gradient orbs */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full opacity-40"
+             style={{ background: "radial-gradient(circle, #c7d2fe 0%, transparent 70%)", animation: "float1 20s ease-in-out infinite" }} />
+        <div className="absolute top-[30%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-30"
+             style={{ background: "radial-gradient(circle, #ddd6fe 0%, transparent 70%)", animation: "float2 25s ease-in-out infinite" }} />
+        <div className="absolute bottom-[-5%] left-[30%] w-[400px] h-[400px] rounded-full opacity-35"
+             style={{ background: "radial-gradient(circle, #bfdbfe 0%, transparent 70%)", animation: "float3 22s ease-in-out infinite" }} />
+      </div>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#FBFBFD]/80 backdrop-blur-xl" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+      <header className="sticky top-0 z-50 glass-header">
         <div className="max-w-5xl mx-auto px-5 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2.5">
@@ -993,7 +1163,7 @@ export default function SEODashboard() {
             </div>
             <button
               onClick={() => setShowApiKey(!showApiKey)}
-              className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 hover:bg-[#F5F5F7]"
+              className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 hover:bg-white/30"
               style={{ color: apiKey ? "#34C759" : "#86868B" }}
             >
               <Key size={13} />
@@ -1016,13 +1186,13 @@ export default function SEODashboard() {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Paste your Google PageSpeed API key..."
-                    className="flex-1 px-4 py-2.5 text-[13px] text-[#1D1D1F] placeholder:text-[#C7C7CC] bg-white border border-[#E5E5EA] rounded-xl outline-none transition-all duration-200 focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/10"
+                    className="flex-1 px-4 py-2.5 text-[13px] text-[#1D1D1F] placeholder:text-[#C7C7CC] glass-input rounded-xl outline-none transition-all duration-200 focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/10"
                   />
                   <a
                     href="https://console.cloud.google.com/apis/credentials"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 text-[12px] font-medium px-4 py-2.5 rounded-xl text-[#0071E3] bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors duration-200 flex-shrink-0"
+                    className="flex items-center justify-center gap-1.5 text-[12px] font-medium px-4 py-2.5 rounded-xl text-[#0071E3] bg-white/30 hover:bg-white/50 transition-colors duration-200 flex-shrink-0"
                   >
                     Get free key <ExternalLink size={10} />
                   </a>
@@ -1072,10 +1242,7 @@ export default function SEODashboard() {
               className="mt-10 sm:mt-12 max-w-xl mx-auto"
             >
               <div
-                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-white rounded-2xl"
-                style={{
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)",
-                }}
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 glass-card-strong rounded-2xl"
               >
                 <div className="flex-1 flex items-center gap-3 px-4 py-2">
                   <Search size={18} className="text-[#C7C7CC] flex-shrink-0" />
@@ -1150,7 +1317,7 @@ export default function SEODashboard() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setAudit(null); setTimeout(() => inputRef.current?.focus(), 100); }}
-                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED] transition-colors duration-200"
+                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg glass-pill text-[#1D1D1F] hover:bg-white/50 transition-colors duration-200"
                 >
                   <Search size={13} /> New audit
                 </button>
@@ -1168,11 +1335,7 @@ export default function SEODashboard() {
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-              className="text-center bg-white rounded-2xl p-10 sm:p-12 mb-6"
-              style={{
-                boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-                border: "1px solid rgba(0,0,0,0.04)",
-              }}
+              className="text-center glass-card-strong rounded-2xl p-10 sm:p-12 mb-6"
             >
               <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-[#86868B] mb-8">
                 Overall SEO Score
@@ -1181,10 +1344,10 @@ export default function SEODashboard() {
               <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
                 <StatusBadge status={getStatus(audit.globalScore)} />
                 <div className="flex items-center gap-2 text-[11px] text-[#86868B]">
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#F5F5F7]">
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/30">
                     <Eye size={10} /> {audit.realSignals} real
                   </span>
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#F5F5F7]">
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/30">
                     <BarChart3 size={10} /> {audit.estimatedSignals} estimated
                   </span>
                 </div>
@@ -1223,7 +1386,7 @@ export default function SEODashboard() {
               transition={{ delay: 0.8 }}
               className="mt-8 text-center"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5F5F7]">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-pill">
                 <Shield size={11} className="text-[#86868B]" />
                 <p className="text-[11px] text-[#86868B]">
                   Performance data from PageSpeed Insights. On-page data from live HTML analysis. Some signals are estimated.
