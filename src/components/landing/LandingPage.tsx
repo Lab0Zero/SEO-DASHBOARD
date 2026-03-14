@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
-import { useScroll, useTransform, motion } from "framer-motion";
+import React from "react";
+import { motion } from "framer-motion";
 import { SEOHeroEffect } from "./SEOHeroEffect";
 import { Search, BarChart3, Zap, Shield, FileText, TrendingUp } from "lucide-react";
 
@@ -10,35 +10,11 @@ export default function LandingPage({
 }: {
   onAnalyze: (url: string) => void;
 }) {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
-
-  const pathLengthFirst = useTransform(scrollYProgress, [0, 0.8], [0.2, 1.2]);
-  const pathLengthSecond = useTransform(scrollYProgress, [0, 0.8], [0.15, 1.2]);
-  const pathLengthThird = useTransform(scrollYProgress, [0, 0.8], [0.1, 1.2]);
-  const pathLengthFourth = useTransform(scrollYProgress, [0, 0.8], [0.05, 1.2]);
-  const pathLengthFifth = useTransform(scrollYProgress, [0, 0.8], [0, 1.2]);
-
   return (
     <div className="min-h-screen bg-black overflow-hidden">
-      {/* Hero Section with scroll-driven SVG */}
-      <div
-        ref={ref}
-        className="h-[400vh] bg-black w-full relative pt-20 md:pt-40 overflow-clip"
-      >
-        <SEOHeroEffect
-          pathLengths={[
-            pathLengthFirst,
-            pathLengthSecond,
-            pathLengthThird,
-            pathLengthFourth,
-            pathLengthFifth,
-          ]}
-          onAnalyze={onAnalyze}
-        />
+      {/* Hero Section with auto-animated SVG */}
+      <div className="bg-black w-full relative pt-20 md:pt-40 overflow-clip">
+        <SEOHeroEffect onAnalyze={onAnalyze} />
       </div>
 
       {/* Features Section */}
