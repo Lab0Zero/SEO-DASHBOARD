@@ -78,25 +78,27 @@ export const SEOHeroEffect = ({
             />
           ))}
 
-          {/* Animated sharp paths — infinite loop draw/undraw */}
+          {/* Animated sharp paths — smooth left-to-right draw, then restart */}
           {pathData.map((d, i) => (
             <motion.path
               key={`anim-${i}`}
               d={d}
-              stroke={pathColors[i]}
+              stroke={`url(#gradient-${i})`}
               strokeWidth="2.5"
               fill="none"
-              initial={{ pathLength: 0, opacity: 0.8 }}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, pathOffset: 0, opacity: 0 }}
               animate={{
-                pathLength: [0, 1, 1, 0],
-                opacity: [0.4, 1, 1, 0.4],
+                pathLength: [0, 0.6, 0.6, 0],
+                pathOffset: [0, 0, 0.4, 1],
+                opacity: [0, 1, 1, 0],
               }}
               transition={{
-                duration: 6,
+                duration: 5,
                 repeat: Infinity,
                 repeatType: "loop" as const,
-                ease: "easeInOut",
-                delay: i * 0.4,
+                ease: "linear" as const,
+                delay: i * 0.6,
                 times: [0, 0.4, 0.6, 1],
               }}
             />
@@ -106,6 +108,13 @@ export const SEOHeroEffect = ({
             <filter id="blurMe">
               <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
             </filter>
+            {pathColors.map((color, i) => (
+              <linearGradient key={`gradient-${i}`} id={`gradient-${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+                <stop offset="30%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor={color} stopOpacity="1" />
+              </linearGradient>
+            ))}
           </defs>
         </svg>
 

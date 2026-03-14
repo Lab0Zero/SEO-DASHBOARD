@@ -17,8 +17,8 @@ export default function LandingPage({
         <SEOHeroEffect onAnalyze={onAnalyze} />
       </div>
 
-      {/* Features Section */}
-      <div className="relative bg-black pb-20 md:pb-32">
+      {/* Features Section — pushed down so user must scroll */}
+      <div className="relative bg-black pt-32 md:pt-48 pb-20 md:pb-32">
         {/* Top gradient fade */}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black to-transparent z-10" />
 
