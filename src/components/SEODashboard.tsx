@@ -1145,12 +1145,12 @@ export default function SEODashboard() {
     <div className="min-h-screen relative">
       {/* Background gradient orbs */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full opacity-40"
-             style={{ background: "radial-gradient(circle, #c7d2fe 0%, transparent 70%)", animation: "float1 20s ease-in-out infinite" }} />
-        <div className="absolute top-[30%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-30"
-             style={{ background: "radial-gradient(circle, #ddd6fe 0%, transparent 70%)", animation: "float2 25s ease-in-out infinite" }} />
-        <div className="absolute bottom-[-5%] left-[30%] w-[400px] h-[400px] rounded-full opacity-35"
-             style={{ background: "radial-gradient(circle, #bfdbfe 0%, transparent 70%)", animation: "float3 22s ease-in-out infinite" }} />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full opacity-40"
+             style={{ background: "radial-gradient(circle, #b8d4f0 0%, transparent 70%)", animation: "float1 20s ease-in-out infinite" }} />
+        <div className="absolute top-[-15%] right-[-15%] w-[700px] h-[700px] rounded-full opacity-30"
+             style={{ background: "radial-gradient(circle, #f4a98a 0%, transparent 70%)", animation: "float2 25s ease-in-out infinite" }} />
+        <div className="absolute top-[50%] left-[20%] w-[500px] h-[500px] rounded-full opacity-30"
+             style={{ background: "radial-gradient(circle, #e8eaf6 0%, transparent 70%)", animation: "float3 22s ease-in-out infinite" }} />
       </div>
 
       {/* Header */}

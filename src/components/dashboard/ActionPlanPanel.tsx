@@ -198,7 +198,7 @@ export default function ActionPlanPanel({ actionPlan, onDownloadPDF, pdfLoading 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className="mt-6 glass-card rounded-2xl"
+      className="mt-6 glass-card rounded-[18px]"
     >
       <div className="p-6 sm:p-8">
         {/* Header */}
