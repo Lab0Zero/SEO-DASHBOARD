@@ -22,6 +22,7 @@ interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
   recentAudits?: string[];
+  onBackToLanding?: () => void;
 }
 
 const subMenuItems = [
@@ -36,13 +37,18 @@ export default function Sidebar({
   activeView,
   onViewChange,
   recentAudits = [],
+  onBackToLanding,
 }: SidebarProps) {
   const [auditsOpen, setAuditsOpen] = useState(true);
 
   return (
     <aside className="dashboard-sidebar flex flex-col gap-6">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-1 mb-2">
+      <button
+        onClick={onBackToLanding}
+        className="flex items-center gap-2.5 px-1 mb-2 group cursor-pointer"
+        title="Back to home"
+      >
         <div className="relative w-7 h-7 flex items-center justify-center">
           <Check
             size={18}
@@ -55,10 +61,10 @@ export default function Sidebar({
             className="text-[#3b82f6] absolute translate-x-[2px] translate-y-[1px] opacity-60"
           />
         </div>
-        <span className="font-semibold text-[15px] text-[#111827]">
+        <span className="font-semibold text-[15px] text-[#111827] group-hover:text-[#3b82f6] transition-colors">
           SEO Audit
         </span>
-      </div>
+      </button>
 
       {/* MAIN section */}
       <div>

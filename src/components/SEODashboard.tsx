@@ -1149,8 +1149,14 @@ function LoadingScreen({ steps }: { steps: LoadingStep[] }) {
 
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 
-export default function SEODashboard() {
-  const [url, setUrl] = useState("");
+export default function SEODashboard({
+  initialUrl = "",
+  onBackToLanding,
+}: {
+  initialUrl?: string;
+  onBackToLanding?: () => void;
+} = {}) {
+  const [url, setUrl] = useState(initialUrl);
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1163,6 +1169,7 @@ export default function SEODashboard() {
   const [activeView, setActiveView] = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recentAudits, setRecentAudits] = useState<string[]>([]);
+  const hasAutoRun = useRef(false);
 
   const runAudit = useCallback(async () => {
     const normalizedUrl = normalizeUrl(url.trim());
@@ -1265,6 +1272,14 @@ export default function SEODashboard() {
     if (e.key === "Enter") runAudit();
   };
 
+  // Auto-run audit if initialUrl was provided from landing page
+  useEffect(() => {
+    if (initialUrl && !hasAutoRun.current) {
+      hasAutoRun.current = true;
+      runAudit();
+    }
+  }, [initialUrl, runAudit]);
+
   const hasCritical = audit ? audit.categories.some(c => c.status === "critical") : false;
 
   const handleDownloadPDF = async () => {
@@ -1315,6 +1330,7 @@ export default function SEODashboard() {
                 activeView={activeView}
                 onViewChange={(v) => { setActiveView(v); setMobileMenuOpen(false); }}
                 recentAudits={recentAudits}
+                onBackToLanding={onBackToLanding}
               />
             </motion.div>
           </motion.div>
@@ -1331,6 +1347,7 @@ export default function SEODashboard() {
             activeView={activeView}
             onViewChange={setActiveView}
             recentAudits={recentAudits}
+            onBackToLanding={onBackToLanding}
           />
         </div>
 
