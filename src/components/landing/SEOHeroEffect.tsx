@@ -43,24 +43,112 @@ export const SEOHeroEffect = ({
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative flex flex-col items-center", className)}>
       {/* Title — large like Aceternity */}
       <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-[110px] font-normal pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-100 to-neutral-300 leading-[1.05] tracking-tight">
         {title || "SEO Audit Dashboard"}
       </h1>
-      <p className="text-sm sm:text-base md:text-xl font-normal text-center text-neutral-400 mt-4 md:mt-6 max-w-2xl mx-auto px-4">
-        {description ||
-          "Analyze any website's SEO performance in seconds. Get actionable insights powered by real data."}
-      </p>
 
-      {/* SVG Paths — positioned behind the input */}
-      <div className="relative w-full mt-8 md:mt-12" style={{ height: "clamp(280px, 40vw, 420px)" }}>
+      {/* Description — each sentence on its own line */}
+      <div className="mt-4 md:mt-6 text-center px-4">
+        <p className="text-sm sm:text-base md:text-xl font-normal text-neutral-400">
+          Analyze any website&apos;s SEO performance in seconds.
+        </p>
+        <p className="text-sm sm:text-base md:text-xl font-normal text-neutral-400 mt-1">
+          Get actionable insights powered by real data.
+        </p>
+      </div>
+
+      {/* URL Input Form — between title and animation */}
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-[560px] mx-auto px-4 mt-8 md:mt-10 relative z-10"
+      >
+        <div
+          className={cn(
+            "relative flex items-center rounded-full transition-all duration-300",
+            "bg-black/60 backdrop-blur-2xl border",
+            isFocused
+              ? "border-white/30 shadow-[0_0_40px_rgba(7,110,255,0.2)]"
+              : "border-white/[0.15] shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+            "hover:border-white/25"
+          )}
+        >
+          <Search
+            size={18}
+            className="absolute left-4 md:left-5 text-neutral-400 pointer-events-none"
+          />
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter website URL to analyze..."
+            className={cn(
+              "w-full bg-transparent text-white placeholder-neutral-500",
+              "pl-10 md:pl-12 pr-32 md:pr-36 py-3.5 md:py-4",
+              "text-sm md:text-base font-normal",
+              "outline-none rounded-full",
+              "caret-[#4FABFF]"
+            )}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="submit"
+            disabled={!url.trim() || isLoading}
+            className={cn(
+              "absolute right-1.5 md:right-2 flex items-center gap-2",
+              "rounded-full px-4 md:px-5 py-2 md:py-2.5",
+              "text-xs md:text-sm font-semibold",
+              "transition-all duration-200",
+              url.trim()
+                ? "bg-white text-black hover:bg-neutral-100 active:scale-[0.97]"
+                : "bg-white/10 text-neutral-500 cursor-not-allowed"
+            )}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span className="hidden md:inline">Analyzing...</span>
+              </>
+            ) : (
+              <>
+                Analyze
+                <ArrowRight size={14} />
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Example URLs */}
+        <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+          <span className="text-[11px] md:text-xs text-neutral-600">
+            Try:
+          </span>
+          {["stripe.com", "linear.app", "vercel.com"].map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => setUrl(example)}
+              className="text-[11px] md:text-xs text-neutral-500 hover:text-white px-2.5 py-1 rounded-full border border-white/[0.08] hover:border-white/20 transition-all duration-200 hover:bg-white/[0.05]"
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </form>
+
+      {/* SVG Paths — below the input, no overlap */}
+      <div className="w-full mt-4" style={{ height: "clamp(200px, 30vw, 320px)" }}>
         <svg
           width="1440"
           height="380"
           viewBox="0 320 1440 380"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute inset-0 w-full h-full"
+          className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
           {/* Blurred glow paths (always visible, static) */}
@@ -107,90 +195,6 @@ export const SEOHeroEffect = ({
             ))}
           </defs>
         </svg>
-
-        {/* URL Input Form — centered over the SVG */}
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <form
-            onSubmit={handleSubmit}
-            className="w-full max-w-[560px] mx-auto px-4"
-          >
-            <div
-              className={cn(
-                "relative flex items-center rounded-full transition-all duration-300",
-                "bg-black/60 backdrop-blur-2xl border",
-                isFocused
-                  ? "border-white/30 shadow-[0_0_40px_rgba(7,110,255,0.2)]"
-                  : "border-white/[0.15] shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
-                "hover:border-white/25"
-              )}
-            >
-              <Search
-                size={18}
-                className="absolute left-4 md:left-5 text-neutral-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                onKeyDown={handleKeyDown}
-                placeholder="Enter website URL to analyze..."
-                className={cn(
-                  "w-full bg-transparent text-white placeholder-neutral-500",
-                  "pl-10 md:pl-12 pr-32 md:pr-36 py-3.5 md:py-4",
-                  "text-sm md:text-base font-normal",
-                  "outline-none rounded-full",
-                  "caret-[#4FABFF]"
-                )}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button
-                type="submit"
-                disabled={!url.trim() || isLoading}
-                className={cn(
-                  "absolute right-1.5 md:right-2 flex items-center gap-2",
-                  "rounded-full px-4 md:px-5 py-2 md:py-2.5",
-                  "text-xs md:text-sm font-semibold",
-                  "transition-all duration-200",
-                  url.trim()
-                    ? "bg-white text-black hover:bg-neutral-100 active:scale-[0.97]"
-                    : "bg-white/10 text-neutral-500 cursor-not-allowed"
-                )}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    <span className="hidden md:inline">Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    Analyze
-                    <ArrowRight size={14} />
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Example URLs */}
-            <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
-              <span className="text-[11px] md:text-xs text-neutral-600">
-                Try:
-              </span>
-              {["stripe.com", "linear.app", "vercel.com"].map((example) => (
-                <button
-                  key={example}
-                  type="button"
-                  onClick={() => setUrl(example)}
-                  className="text-[11px] md:text-xs text-neutral-500 hover:text-white px-2.5 py-1 rounded-full border border-white/[0.08] hover:border-white/20 transition-all duration-200 hover:bg-white/[0.05]"
-                >
-                  {example}
-                </button>
-              ))}
-            </div>
-          </form>
-        </div>
       </div>
     </div>
   );
