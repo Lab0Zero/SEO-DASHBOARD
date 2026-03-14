@@ -285,6 +285,41 @@ body {
   transform: scale(0.98);
 }
 
+/* ─── Hero SVG path animation ────────────────────────────────────────────── */
+
+@keyframes heroPathDraw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  45% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  55% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  95% {
+    stroke-dashoffset: -1;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+}
+
+.hero-path-anim {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: heroPathDraw 4s linear infinite;
+  will-change: stroke-dashoffset, opacity;
+}
+
 /* ─── Selection ───────────────────────────────────────────────────────────── */
 
 ::selection {

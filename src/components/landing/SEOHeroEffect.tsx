@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 import React, { useState } from "react";
 import { Search, ArrowRight, Loader2 } from "lucide-react";
 
@@ -78,28 +77,19 @@ export const SEOHeroEffect = ({
             />
           ))}
 
-          {/* Animated sharp paths — smooth left-to-right draw, then restart */}
+          {/* Animated sharp paths — CSS-driven for GPU smoothness */}
           {pathData.map((d, i) => (
-            <motion.path
+            <path
               key={`anim-${i}`}
               d={d}
               stroke={`url(#gradient-${i})`}
               strokeWidth="2.5"
               fill="none"
               strokeLinecap="round"
-              initial={{ pathLength: 0, pathOffset: 0, opacity: 0 }}
-              animate={{
-                pathLength: [0, 0.6, 0.6, 0],
-                pathOffset: [0, 0, 0.4, 1],
-                opacity: [0, 1, 1, 0],
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                repeatType: "loop" as const,
-                ease: "linear" as const,
-                delay: i * 0.6,
-                times: [0, 0.4, 0.6, 1],
+              pathLength={1}
+              className="hero-path-anim"
+              style={{
+                animationDelay: `${i * 0.8}s`,
               }}
             />
           ))}
