@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Globe,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -20,12 +21,13 @@ interface SidebarProps {
   actionPlanCount: number;
   activeView: string;
   onViewChange: (view: string) => void;
+  recentAudits?: string[];
 }
 
-const contacts = [
-  { name: "Erik Gunsel", initials: "EG", color: "bg-emerald-400" },
-  { name: "Emily Smith", initials: "ES", color: "bg-violet-400" },
-  { name: "Arthur Adelk", initials: "AA", color: "bg-orange-400" },
+const subMenuItems = [
+  { label: "Activity", view: "action-plan" },
+  { label: "Statistic", view: "category-details" },
+  { label: "Performance Cases", view: "dashboard" },
 ];
 
 export default function Sidebar({
@@ -33,8 +35,9 @@ export default function Sidebar({
   actionPlanCount,
   activeView,
   onViewChange,
+  recentAudits = [],
 }: SidebarProps) {
-  const [messagesOpen, setMessagesOpen] = useState(true);
+  const [auditsOpen, setAuditsOpen] = useState(true);
 
   return (
     <aside className="dashboard-sidebar flex flex-col gap-6">
@@ -65,7 +68,9 @@ export default function Sidebar({
           <button
             onClick={() => onViewChange("dashboard")}
             className={`nav-item w-full ${
-              activeView === "dashboard" ? "nav-item-active" : ""
+              activeView === "dashboard" || activeView === "action-plan" || activeView.startsWith("category-")
+                ? "nav-item-active"
+                : ""
             }`}
           >
             <LayoutDashboard size={17} />
@@ -73,18 +78,20 @@ export default function Sidebar({
           </button>
 
           {/* Dashboard submenu */}
-          {activeView === "dashboard" && (
+          {(activeView === "dashboard" || activeView === "action-plan" || activeView.startsWith("category-")) && (
             <div className="ml-[39px] flex flex-col gap-0.5 mt-0.5">
-              {["Activity", "Statistic", "Performance Cases"].map((item) => (
+              {subMenuItems.map((item) => (
                 <button
-                  key={item}
+                  key={item.label}
+                  onClick={() => onViewChange(item.view)}
                   className={`text-left text-[12px] py-1.5 px-2.5 rounded-lg transition-all duration-150 ${
-                    item === "Performance Cases"
-                      ? "text-[#6b7280] bg-white/30"
-                      : "text-[#9ca3af] hover:text-[#6b7280]"
+                    (item.view === activeView) ||
+                    (item.view === "category-details" && activeView.startsWith("category-"))
+                      ? "text-[#374151] bg-white/30 font-medium"
+                      : "text-[#9ca3af] hover:text-[#6b7280] hover:bg-white/15"
                   }`}
                 >
-                  {item}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -92,9 +99,9 @@ export default function Sidebar({
 
           {/* Tasks */}
           <button
-            onClick={() => onViewChange("tasks")}
+            onClick={() => onViewChange("action-plan")}
             className={`nav-item w-full ${
-              activeView === "tasks" ? "nav-item-active" : ""
+              activeView === "action-plan" ? "nav-item-active" : ""
             }`}
           >
             <ListTodo size={17} />
@@ -108,9 +115,9 @@ export default function Sidebar({
 
           {/* Libraries */}
           <button
-            onClick={() => onViewChange("libraries")}
+            onClick={() => onViewChange("category-details")}
             className={`nav-item w-full ${
-              activeView === "libraries" ? "nav-item-active" : ""
+              activeView.startsWith("category-") ? "nav-item-active" : ""
             }`}
           >
             <BookOpen size={17} />
@@ -119,7 +126,7 @@ export default function Sidebar({
 
           {/* Saved */}
           <button
-            onClick={() => onViewChange("saved")}
+            onClick={() => onViewChange("dashboard")}
             className={`nav-item w-full ${
               activeView === "saved" ? "nav-item-active" : ""
             }`}
@@ -130,40 +137,43 @@ export default function Sidebar({
         </nav>
       </div>
 
-      {/* RECENT MESSAGES section */}
+      {/* RECENT AUDITS section */}
       <div>
         <button
-          onClick={() => setMessagesOpen(!messagesOpen)}
+          onClick={() => setAuditsOpen(!auditsOpen)}
           className="section-label px-3 mb-2 flex items-center gap-1.5 w-full hover:text-[#6b7280] transition-colors"
         >
-          {messagesOpen ? (
+          {auditsOpen ? (
             <ChevronDown size={12} />
           ) : (
             <ChevronRight size={12} />
           )}
-          RECENT MESSAGES
+          RECENT AUDITS
         </button>
 
-        {messagesOpen && audit && (
+        {auditsOpen && recentAudits.length > 0 && (
           <div className="flex flex-col gap-1 mt-1">
-            {contacts.map((contact) => (
+            {recentAudits.slice(0, 5).map((auditUrl, i) => (
               <button
-                key={contact.name}
-                className="flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all duration-150 hover:bg-white/25 w-full"
+                key={`${auditUrl}-${i}`}
+                onClick={() => onViewChange("dashboard")}
+                className="flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all duration-150 hover:bg-white/25 w-full group"
               >
-                <div
-                  className={`w-[36px] h-[36px] rounded-full ${contact.color} flex items-center justify-center flex-shrink-0`}
-                >
-                  <span className="text-white text-[11px] font-semibold">
-                    {contact.initials}
-                  </span>
+                <div className="w-[32px] h-[32px] rounded-full bg-gradient-to-br from-blue-400/20 to-blue-500/30 flex items-center justify-center flex-shrink-0">
+                  <Globe size={14} className="text-[#3b82f6]" />
                 </div>
-                <span className="text-[13px] text-[#374151] truncate">
-                  {contact.name}
+                <span className="text-[12px] text-[#374151] truncate group-hover:text-[#111827] transition-colors">
+                  {auditUrl}
                 </span>
               </button>
             ))}
           </div>
+        )}
+
+        {auditsOpen && recentAudits.length === 0 && (
+          <p className="px-3 text-[11px] text-[#9ca3af] italic">
+            No audits yet
+          </p>
         )}
       </div>
     </aside>

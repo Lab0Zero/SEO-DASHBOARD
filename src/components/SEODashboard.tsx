@@ -1040,6 +1040,7 @@ export default function SEODashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [recentAudits, setRecentAudits] = useState<string[]>([]);
 
   const runAudit = useCallback(async () => {
     const normalizedUrl = normalizeUrl(url.trim());
@@ -1141,6 +1142,10 @@ export default function SEODashboard() {
       await new Promise((r) => setTimeout(r, 300));
       setAudit(auditData);
       setActionPlan(plan);
+      setRecentAudits(prev => {
+        const filtered = prev.filter(u => u !== normalizedUrl);
+        return [normalizedUrl, ...filtered].slice(0, 5);
+      });
     } catch (err) {
       console.error("Audit error:", err);
     } finally {
@@ -1201,6 +1206,7 @@ export default function SEODashboard() {
                 actionPlanCount={actionPlan?.items.length ?? 0}
                 activeView={activeView}
                 onViewChange={(v) => { setActiveView(v); setMobileMenuOpen(false); }}
+                recentAudits={recentAudits}
               />
             </motion.div>
           </motion.div>
@@ -1216,6 +1222,7 @@ export default function SEODashboard() {
             actionPlanCount={actionPlan?.items.length ?? 0}
             activeView={activeView}
             onViewChange={setActiveView}
+            recentAudits={recentAudits}
           />
         </div>
 
@@ -1233,6 +1240,7 @@ export default function SEODashboard() {
             setApiKey={setApiKey}
             hasCritical={hasCritical}
             onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+            criticalItems={actionPlan?.items.filter(i => i.priority === "critical" || i.priority === "high").map(i => ({ title: i.title, priority: i.priority })) ?? []}
           />
         </div>
 
@@ -1283,14 +1291,14 @@ export default function SEODashboard() {
 
               {/* Row 3: Top Issues + Score Chart */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <TopIssues items={actionPlan?.items ?? []} />
-                <ScoreChart categories={audit.categories} />
+                <TopIssues items={actionPlan?.items ?? []} onSeeAll={() => setActiveView("action-plan")} />
+                <ScoreChart categories={audit.categories} onFullReport={() => setActiveView("action-plan")} />
               </div>
 
               {/* Row 4: Recent Findings + Category Comparison */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <FindingsPanel categories={audit.categories} />
-                <CategoryComparison categories={audit.categories} />
+                <FindingsPanel categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
+                <CategoryComparison categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
               </div>
             </motion.div>
           )}
@@ -1332,7 +1340,7 @@ export default function SEODashboard() {
           {/* Show right panel content on mobile/tablet (below center) */}
           {audit && !loading && actionPlan && activeView === "dashboard" && (
             <div className="mt-5 xl:hidden">
-              <RightPanel actionPlan={actionPlan} audit={audit} />
+              <RightPanel actionPlan={actionPlan} audit={audit} onViewChange={setActiveView} />
             </div>
           )}
         </main>
@@ -1340,7 +1348,7 @@ export default function SEODashboard() {
         {/* Right Panel */}
         <aside className="dashboard-right">
           {audit && !loading && actionPlan ? (
-            <RightPanel actionPlan={actionPlan} audit={audit} />
+            <RightPanel actionPlan={actionPlan} audit={audit} onViewChange={setActiveView} />
           ) : (
             <div className="glass-card p-4 text-center">
               <p className="text-[12px] text-[#9ca3af]">

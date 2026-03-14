@@ -12,7 +12,7 @@ interface FindingsPanelProps {
   }>;
 }
 
-export default function FindingsPanel({ categories }: FindingsPanelProps) {
+export default function FindingsPanel({ categories, onSeeAll }: FindingsPanelProps & { onSeeAll?: () => void }) {
   const findings: Array<{
     categoryName: string;
     label: string;
@@ -39,7 +39,10 @@ export default function FindingsPanel({ categories }: FindingsPanelProps) {
     <div className="glass-card p-5">
       <div className="flex justify-between items-center mb-4">
         <span className="section-label">RECENT FINDINGS</span>
-        <button className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors">
+        <button
+          onClick={onSeeAll}
+          className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors"
+        >
           See all &gt;
         </button>
       </div>

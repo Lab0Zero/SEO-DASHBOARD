@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Search,
   Bell,
@@ -8,6 +8,8 @@ import {
   Menu,
   Key,
   ExternalLink,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -23,6 +25,7 @@ interface TopBarProps {
   setApiKey: (key: string) => void;
   hasCritical: boolean;
   onMobileMenuToggle?: () => void;
+  criticalItems?: Array<{ title: string; priority: string }>;
 }
 
 export default function TopBar({
@@ -37,12 +40,29 @@ export default function TopBar({
   setApiKey,
   hasCritical,
   onMobileMenuToggle,
+  criticalItems = [],
 }: TopBarProps) {
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       onRunAudit();
     }
   };
+
+  // Close bell dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    }
+    if (bellOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [bellOpen]);
 
   return (
     <div className="dashboard-topbar">
@@ -91,19 +111,69 @@ export default function TopBar({
 
           {/* Right side */}
           <div className="hidden sm:flex items-center gap-3">
-            {/* Bell */}
-            <button className="relative p-2 rounded-xl hover:bg-white/20 transition-colors">
-              <Bell size={20} className="text-[#6b7280]" />
-              {hasCritical && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
-              )}
-            </button>
+            {/* Bell with dropdown */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setBellOpen(!bellOpen)}
+                className="relative p-2 rounded-xl hover:bg-white/20 transition-colors"
+              >
+                <Bell size={20} className="text-[#6b7280]" />
+                {hasCritical && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {bellOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-12 w-[280px] glass-card-strong p-4 z-50"
+                  >
+                    <p className="section-label mb-3">NOTIFICATIONS</p>
+                    {criticalItems.length > 0 ? (
+                      <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto">
+                        {criticalItems.slice(0, 6).map((item, i) => (
+                          <div
+                            key={i}
+                            className="flex items-start gap-2.5 py-2 px-2 rounded-lg hover:bg-white/20 transition-colors"
+                          >
+                            {item.priority === "critical" ? (
+                              <AlertCircle size={14} className="text-[#ef4444] flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <AlertTriangle size={14} className="text-[#f97316] flex-shrink-0 mt-0.5" />
+                            )}
+                            <div>
+                              <p className="text-[12px] font-medium text-[#374151] leading-tight">
+                                {item.title}
+                              </p>
+                              <p className="text-[10px] text-[#9ca3af] mt-0.5 capitalize">
+                                {item.priority} priority
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[12px] text-[#9ca3af] italic py-2">
+                        No issues found. Run an audit to check.
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Divider */}
             <div className="h-6 w-px bg-gray-200/50" />
 
-            {/* User area */}
-            <div className="flex items-center gap-2.5 cursor-pointer group">
+            {/* User area — click toggles API key settings */}
+            <button
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="flex items-center gap-2.5 group"
+            >
               <div className="text-right hidden md:block">
                 <p className="text-[10px] uppercase tracking-[0.1em] text-[#9ca3af] leading-none">
                   DELL LAWYER
@@ -117,9 +187,9 @@ export default function TopBar({
               </div>
               <ChevronDown
                 size={14}
-                className="text-[#9ca3af] group-hover:text-[#6b7280] transition-colors"
+                className={`text-[#9ca3af] group-hover:text-[#6b7280] transition-all duration-200 ${showApiKey ? "rotate-180" : ""}`}
               />
-            </div>
+            </button>
           </div>
         </div>
 

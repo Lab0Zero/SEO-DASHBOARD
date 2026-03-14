@@ -8,6 +8,7 @@ interface ScoreChartProps {
     score: number;
     status: string;
   }>;
+  onFullReport?: () => void;
 }
 
 const barColors = [
@@ -27,7 +28,7 @@ const leftPadding = 30;
 const topPadding = 5;
 const bottomPadding = 10;
 
-export default function ScoreChart({ categories }: ScoreChartProps) {
+export default function ScoreChart({ categories, onFullReport }: ScoreChartProps) {
   const totalBars = categories.length;
   const chartWidth = leftPadding + totalBars * (barWidth + 20) + 20;
 
@@ -47,6 +48,7 @@ export default function ScoreChart({ categories }: ScoreChartProps) {
           SCORE DISTRIBUTION
         </p>
         <button
+          onClick={onFullReport}
           className="flex items-center gap-1 hover:text-[#374151] transition-colors"
           style={{ fontSize: 13, fontWeight: 500, color: "#6b7280" }}
         >

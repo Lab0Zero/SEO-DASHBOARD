@@ -16,12 +16,15 @@ function getScoreColor(score: number): string {
   return "#ef4444";
 }
 
-export default function CategoryComparison({ categories }: CategoryComparisonProps) {
+export default function CategoryComparison({ categories, onSeeAll }: CategoryComparisonProps & { onSeeAll?: () => void }) {
   return (
     <div className="glass-card p-5">
       <div className="flex justify-between items-center mb-4">
         <span className="section-label">CATEGORY SCORES</span>
-        <button className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors">
+        <button
+          onClick={onSeeAll}
+          className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors"
+        >
           See all &gt;
         </button>
       </div>

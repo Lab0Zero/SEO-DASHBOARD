@@ -8,6 +8,7 @@ interface TopIssuesProps {
     expectedScoreGain: number;
     category: string;
   }>;
+  onSeeAll?: () => void;
 }
 
 const priorityColors: Record<string, string> = {
@@ -15,7 +16,7 @@ const priorityColors: Record<string, string> = {
   high: "#f97316",
 };
 
-export default function TopIssues({ items }: TopIssuesProps) {
+export default function TopIssues({ items, onSeeAll }: TopIssuesProps) {
   const filtered = items
     .filter((item) => item.priority === "critical" || item.priority === "high")
     .slice(0, 4);
@@ -24,7 +25,10 @@ export default function TopIssues({ items }: TopIssuesProps) {
     <div className="glass-card p-5">
       <div className="flex justify-between items-center mb-4">
         <span className="section-label">TOP ISSUES</span>
-        <button className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors">
+        <button
+          onClick={onSeeAll}
+          className="flex items-center gap-1 text-[13px] text-[#6b7280] hover:text-[#374151] transition-colors"
+        >
           See all &gt;
         </button>
       </div>

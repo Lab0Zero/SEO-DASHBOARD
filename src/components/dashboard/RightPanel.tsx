@@ -21,6 +21,7 @@ interface RightPanelProps {
   audit: {
     globalScore: number;
   };
+  onViewChange?: (view: string) => void;
 }
 
 const priorityColors: Record<string, string> = {
@@ -32,16 +33,21 @@ const priorityColors: Record<string, string> = {
 
 const groupBorderColors = ["#22c55e", "#3b82f6", "#f97316", "#ef4444"];
 
-function PlusButton() {
+function PlusButton({ onClick }: { onClick?: () => void }) {
   return (
-    <button className="bg-[#3b82f6] w-7 h-7 rounded-full flex items-center justify-center text-white hover:bg-[#2563eb] transition-colors flex-shrink-0">
+    <button
+      onClick={onClick}
+      className="bg-[#3b82f6] w-7 h-7 rounded-full flex items-center justify-center text-white hover:bg-[#2563eb] transition-colors flex-shrink-0"
+    >
       <Plus size={14} strokeWidth={2.5} />
     </button>
   );
 }
 
-export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
+export default function RightPanel({ actionPlan, audit, onViewChange }: RightPanelProps) {
   const { items } = actionPlan;
+
+  const goToActionPlan = () => onViewChange?.("action-plan");
 
   // Group items by priority
   const grouped: Record<string, ActionItem[]> = {};
@@ -90,7 +96,7 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-4">
           <p className="section-label">MY ACTION PLAN</p>
-          <PlusButton />
+          <PlusButton onClick={goToActionPlan} />
         </div>
 
         <div className="flex flex-col gap-3">
@@ -111,9 +117,10 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {groupItems.map((item) => (
-                    <div
+                    <button
                       key={item.id}
-                      className="pl-3 py-2 rounded-lg hover:bg-white/15 transition-colors cursor-pointer"
+                      onClick={goToActionPlan}
+                      className="pl-3 py-2 rounded-lg hover:bg-white/15 transition-colors cursor-pointer text-left w-full"
                       style={{ borderLeft: `3px solid ${borderColor}` }}
                     >
                       <p className="text-[13px] text-[#374151] truncate leading-tight">
@@ -123,7 +130,7 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
                         +{item.expectedScoreGain} pts &middot;{" "}
                         {item.estimatedTime}
                       </p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -136,7 +143,7 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-4">
           <p className="section-label">PRIORITY BREAKDOWN</p>
-          <PlusButton />
+          <PlusButton onClick={goToActionPlan} />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -174,15 +181,16 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-4">
           <p className="section-label">QUICK WINS</p>
-          <PlusButton />
+          <PlusButton onClick={goToActionPlan} />
         </div>
 
         {quickWins.length > 0 ? (
           <div className="flex flex-col gap-2">
             {quickWins.map((item) => (
-              <div
+              <button
                 key={item.id}
-                className="flex items-center gap-2.5 py-1.5 rounded-lg hover:bg-white/15 transition-colors cursor-pointer px-1"
+                onClick={goToActionPlan}
+                className="flex items-center gap-2.5 py-1.5 rounded-lg hover:bg-white/15 transition-colors cursor-pointer px-1 w-full text-left"
               >
                 <span className="w-2 h-2 rounded-full bg-[#f97316] flex-shrink-0" />
                 <span className="text-[13px] text-[#374151] flex-1 truncate">
@@ -191,7 +199,7 @@ export default function RightPanel({ actionPlan, audit }: RightPanelProps) {
                 <span className="text-[11px] text-[#9ca3af] font-mono flex-shrink-0">
                   +{item.expectedScoreGain} pts
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import React from "react";
 
@@ -46,6 +47,20 @@ export default function CategoryTable({
   categories,
   onFullReport,
 }: CategoryTableProps) {
+  const [checked, setChecked] = useState<Set<number>>(() => new Set([0]));
+
+  const toggleCheck = (index: number) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="glass-card p-5">
       {/* Header */}
@@ -94,6 +109,7 @@ export default function CategoryTable({
       {/* Data Rows */}
       {categories.map((cat, i) => {
         const status = statusConfig[cat.status];
+        const isChecked = checked.has(i);
         return (
           <div
             key={cat.name}
@@ -104,8 +120,8 @@ export default function CategoryTable({
             }}
           >
             {/* Checkbox */}
-            <div>
-              {i === 0 ? (
+            <button onClick={() => toggleCheck(i)} className="flex items-center justify-center">
+              {isChecked ? (
                 <div
                   className="flex items-center justify-center"
                   style={{
@@ -132,6 +148,7 @@ export default function CategoryTable({
                 </div>
               ) : (
                 <div
+                  className="hover:border-[#3b82f6] transition-colors"
                   style={{
                     width: 16,
                     height: 16,
@@ -140,7 +157,7 @@ export default function CategoryTable({
                   }}
                 />
               )}
-            </div>
+            </button>
 
             {/* Name */}
             <div className="flex items-center gap-2.5">
