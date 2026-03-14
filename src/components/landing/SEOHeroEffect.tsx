@@ -54,14 +54,14 @@ export const SEOHeroEffect = ({
       </p>
 
       {/* SVG Paths — positioned behind the input */}
-      <div className="relative w-full mt-8 md:mt-12" style={{ height: "clamp(300px, 50vw, 500px)" }}>
+      <div className="relative w-full mt-8 md:mt-12" style={{ height: "clamp(280px, 40vw, 420px)" }}>
         <svg
           width="1440"
-          height="890"
-          viewBox="0 0 1440 890"
+          height="380"
+          viewBox="0 320 1440 380"
           xmlns="http://www.w3.org/2000/svg"
           className="absolute inset-0 w-full h-full"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMid meet"
         >
           {/* Blurred glow paths (always visible, static) */}
           {pathData.map((d, i) => (
