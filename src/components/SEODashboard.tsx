@@ -29,6 +29,15 @@ import {
 import { buildActionPlan, type ActionPlan } from "./dashboard/actionPlanBuilder";
 import ActionPlanPanel from "./dashboard/ActionPlanPanel";
 import { generatePDF } from "./pdf/generatePDF";
+import Sidebar from "./dashboard/Sidebar";
+import TopBar from "./dashboard/TopBar";
+import KPICards from "./dashboard/KPICards";
+import CategoryTable from "./dashboard/CategoryTable";
+import TopIssues from "./dashboard/TopIssues";
+import ScoreChart from "./dashboard/ScoreChart";
+import FindingsPanel from "./dashboard/FindingsPanel";
+import CategoryComparison from "./dashboard/CategoryComparison";
+import RightPanel from "./dashboard/RightPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1029,6 +1038,8 @@ export default function SEODashboard() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [urlError, setUrlError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeView, setActiveView] = useState("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const runAudit = useCallback(async () => {
     const normalizedUrl = normalizeUrl(url.trim());
@@ -1141,6 +1152,20 @@ export default function SEODashboard() {
     if (e.key === "Enter") runAudit();
   };
 
+  const hasCritical = audit ? audit.categories.some(c => c.status === "critical") : false;
+
+  const handleDownloadPDF = async () => {
+    if (!audit || !actionPlan) return;
+    setPdfLoading(true);
+    try {
+      await generatePDF(audit, actionPlan);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen relative">
       {/* Background gradient orbs */}
@@ -1153,248 +1178,177 @@ export default function SEODashboard() {
              style={{ background: "radial-gradient(circle, #e8eaf6 0%, transparent 70%)", animation: "float3 22s ease-in-out infinite" }} />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass-header">
-        <div className="max-w-5xl mx-auto px-5 sm:px-6">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-2.5">
-              <Globe size={18} className="text-[#1D1D1F]" />
-              <span className="font-semibold text-[#1D1D1F] text-[15px] tracking-tight">SEO Audit</span>
-            </div>
-            <button
-              onClick={() => setShowApiKey(!showApiKey)}
-              className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 hover:bg-white/30"
-              style={{ color: apiKey ? "#34C759" : "#86868B" }}
-            >
-              <Key size={13} />
-              <span className="hidden sm:inline">{apiKey ? "API Key Set" : "API Key"}</span>
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {showApiKey && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                className="overflow-hidden pb-4"
-              >
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Paste your Google PageSpeed API key..."
-                    className="flex-1 px-4 py-2.5 text-[13px] text-[#1D1D1F] placeholder:text-[#C7C7CC] glass-input rounded-xl outline-none transition-all duration-200 focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/10"
-                  />
-                  <a
-                    href="https://console.cloud.google.com/apis/credentials"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 text-[12px] font-medium px-4 py-2.5 rounded-xl text-[#0071E3] bg-white/30 hover:bg-white/50 transition-colors duration-200 flex-shrink-0"
-                  >
-                    Get free key <ExternalLink size={10} />
-                  </a>
-                </div>
-                <p className="text-[11px] text-[#86868B] mt-2">
-                  Free from Google Cloud Console. Enables real performance data.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <div className="max-w-5xl mx-auto px-5 sm:px-6 pb-20">
-        {/* Hero */}
-        {!audit && !loading && (
+      {/* Mobile sidebar overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mt-24 sm:mt-32 md:mt-40"
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 lg:hidden"
           >
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
-              className="font-semibold leading-[1.08] max-w-xl mx-auto text-[#1D1D1F]"
-              style={{ fontSize: "clamp(2rem, 5vw + 0.25rem, 3.25rem)", letterSpacing: "-0.03em" }}
-            >
-              Audit any website&apos;s SEO in seconds.
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-              className="mt-4 text-[17px] max-w-md mx-auto leading-relaxed text-[#86868B]"
-            >
-              Real performance data, on-page analysis, and actionable recommendations.
-            </motion.p>
-
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-              className="mt-10 sm:mt-12 max-w-xl mx-auto"
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="absolute left-0 top-0 h-full w-[260px] glass-card-strong overflow-y-auto"
+              style={{ borderRadius: "0 18px 18px 0" }}
             >
-              <div
-                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 glass-card-strong rounded-2xl"
-              >
-                <div className="flex-1 flex items-center gap-3 px-4 py-2">
-                  <Search size={18} className="text-[#C7C7CC] flex-shrink-0" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={url}
-                    onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Enter a website URL..."
-                    className="w-full bg-transparent outline-none text-[#1D1D1F] placeholder:text-[#C7C7CC] text-[15px]"
-                  />
-                </div>
-                <button
-                  onClick={runAudit}
-                  disabled={!url.trim()}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[14px] font-medium text-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98]"
-                  style={{
-                    background: "#0071E3",
-                  }}
-                >
-                  Analyze <ArrowRight size={15} />
-                </button>
-              </div>
-
-              {urlError && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-[13px] mt-3 text-left px-2 text-[#FF3B30]"
-                >
-                  {urlError}
-                </motion.p>
-              )}
-
-              {!apiKey && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
-                  className="text-[12px] mt-5 text-[#86868B]"
-                >
-                  Works without an API key. Add one for full performance data.
-                </motion.p>
-              )}
+              <Sidebar
+                audit={audit}
+                actionPlanCount={actionPlan?.items.length ?? 0}
+                activeView={activeView}
+                onViewChange={(v) => { setActiveView(v); setMobileMenuOpen(false); }}
+              />
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Loading */}
-        {loading && <LoadingScreen steps={steps} />}
+      {/* 3-Column Dashboard Layout */}
+      <div className="dashboard-layout">
+        {/* Left Sidebar */}
+        <div className="dashboard-sidebar">
+          <Sidebar
+            audit={audit}
+            actionPlanCount={actionPlan?.items.length ?? 0}
+            activeView={activeView}
+            onViewChange={setActiveView}
+          />
+        </div>
 
-        {/* Results */}
-        {audit && !loading && (
-          <div className="mt-10 sm:mt-12">
-            {/* Top bar */}
+        {/* Top Bar */}
+        <div className="dashboard-topbar glass-header">
+          <TopBar
+            url={url}
+            setUrl={(v) => { setUrl(v); setUrlError(""); }}
+            onRunAudit={runAudit}
+            urlError={urlError}
+            loading={loading}
+            apiKey={apiKey}
+            showApiKey={showApiKey}
+            setShowApiKey={setShowApiKey}
+            setApiKey={setApiKey}
+            hasCritical={hasCritical}
+            onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          />
+        </div>
+
+        {/* Center Content */}
+        <main className="dashboard-center">
+          {/* Welcome state */}
+          {!audit && !loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="glass-card p-6 max-w-md mx-auto mt-16"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-[#3b82f6] flex items-center justify-center text-white text-[14px] font-semibold">
+                  SA
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold text-[#374151]">Hello!</p>
+                  <p className="text-[12px] text-[#9ca3af]">Ready to audit?</p>
+                </div>
+              </div>
+              <p className="text-[13px] text-[#6b7280] leading-relaxed">
+                Enter a website URL in the search bar above to start your comprehensive SEO analysis.
+              </p>
+            </motion.div>
+          )}
+
+          {/* Loading state */}
+          {loading && <LoadingScreen steps={steps} />}
+
+          {/* Results — Dashboard overview */}
+          {audit && !loading && activeView === "dashboard" && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
-              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
+              className="space-y-5"
             >
-              <div>
-                <div className="flex items-center gap-2">
-                  <Globe size={14} className="text-[#86868B]" />
-                  <span className="text-[14px] font-medium text-[#1D1D1F] truncate max-w-[300px] sm:max-w-[500px]">{audit.url}</span>
-                </div>
-                <p className="text-[12px] mt-1 ml-[22px] text-[#86868B]">
-                  {audit.realSignals} real + {audit.estimatedSignals} estimated signals
-                </p>
+              {/* Row 1: KPI Cards */}
+              <KPICards audit={audit} actionPlan={actionPlan!} />
+
+              {/* Row 2: Category Table */}
+              <CategoryTable
+                categories={audit.categories}
+                onFullReport={() => setActiveView("action-plan")}
+              />
+
+              {/* Row 3: Top Issues + Score Chart */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <TopIssues items={actionPlan?.items ?? []} />
+                <ScoreChart categories={audit.categories} />
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { setAudit(null); setTimeout(() => inputRef.current?.focus(), 100); }}
-                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg glass-pill text-[#1D1D1F] hover:bg-white/50 transition-colors duration-200"
-                >
-                  <Search size={13} /> New audit
-                </button>
-                <button
-                  onClick={runAudit}
-                  className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-lg bg-[#0071E3] text-white hover:brightness-110 transition-all duration-200"
-                >
-                  <RefreshCw size={13} /> Re-analyze
-                </button>
+
+              {/* Row 4: Recent Findings + Category Comparison */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <FindingsPanel categories={audit.categories} />
+                <CategoryComparison categories={audit.categories} />
               </div>
             </motion.div>
+          )}
 
-            {/* Global Score */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-              className="text-center glass-card-strong rounded-2xl p-10 sm:p-12 mb-6"
-            >
-              <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-[#86868B] mb-8">
-                Overall SEO Score
-              </p>
-              <ScoreDonut score={audit.globalScore} size={200} />
-              <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
-                <StatusBadge status={getStatus(audit.globalScore)} />
-                <div className="flex items-center gap-2 text-[11px] text-[#86868B]">
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/30">
-                    <Eye size={10} /> {audit.realSignals} real
-                  </span>
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/30">
-                    <BarChart3 size={10} /> {audit.estimatedSignals} estimated
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Category Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {audit.categories.map((cat, i) => (
-                <CategoryCard key={cat.name} cat={cat} index={i} />
-              ))}
-            </div>
-
-            {/* Action Plan */}
-            {actionPlan && (
+          {/* Detail view: Action Plan */}
+          {audit && !loading && activeView === "action-plan" && actionPlan && (
+            <div>
+              <button
+                onClick={() => setActiveView("dashboard")}
+                className="flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
+              >
+                ← Back to Dashboard
+              </button>
               <ActionPlanPanel
                 actionPlan={actionPlan}
-                onDownloadPDF={async () => {
-                  setPdfLoading(true);
-                  try {
-                    await generatePDF(audit, actionPlan);
-                  } catch (err) {
-                    console.error("PDF generation failed:", err);
-                  } finally {
-                    setPdfLoading(false);
-                  }
-                }}
+                onDownloadPDF={handleDownloadPDF}
                 pdfLoading={pdfLoading}
               />
-            )}
+            </div>
+          )}
 
-            {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="mt-8 text-center"
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-pill">
-                <Shield size={11} className="text-[#86868B]" />
-                <p className="text-[11px] text-[#86868B]">
-                  Performance data from PageSpeed Insights. On-page data from live HTML analysis. Some signals are estimated.
-                </p>
+          {/* Detail view: Category details */}
+          {audit && !loading && activeView.startsWith("category-") && (
+            <div>
+              <button
+                onClick={() => setActiveView("dashboard")}
+                className="flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
+              >
+                ← Back to Dashboard
+              </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {audit.categories.map((cat, i) => (
+                  <CategoryCard key={cat.name} cat={cat} index={i} />
+                ))}
               </div>
-            </motion.div>
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* Show right panel content on mobile/tablet (below center) */}
+          {audit && !loading && actionPlan && activeView === "dashboard" && (
+            <div className="mt-5 xl:hidden">
+              <RightPanel actionPlan={actionPlan} audit={audit} />
+            </div>
+          )}
+        </main>
+
+        {/* Right Panel */}
+        <aside className="dashboard-right">
+          {audit && !loading && actionPlan ? (
+            <RightPanel actionPlan={actionPlan} audit={audit} />
+          ) : (
+            <div className="glass-card p-4 text-center">
+              <p className="text-[12px] text-[#9ca3af]">
+                Run an audit to see your action plan here.
+              </p>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );
