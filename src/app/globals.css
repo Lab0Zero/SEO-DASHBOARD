@@ -233,6 +233,58 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.18); }
 
+/* ─── Glass card hover ────────────────────────────────────────────────────── */
+
+.glass-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .glass-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 12px 40px rgba(100, 120, 180, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+}
+
+/* ─── Smooth page transitions ─────────────────────────────────────────────── */
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in { animation: slideInRight 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+.animate-fade-up { animation: fadeInUp 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+
+/* ─── Button hover effects ────────────────────────────────────────────────── */
+
+.btn-glass {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  border-radius: 9999px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+.btn-glass:hover {
+  background: rgba(59, 130, 246, 1);
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+.btn-glass:active {
+  transform: scale(0.98);
+}
+
 /* ─── Selection ───────────────────────────────────────────────────────────── */
 
 ::selection {

@@ -137,12 +137,30 @@ function normalizeUrl(str: string): string {
 
 // ─── Fetch functions ─────────────────────────────────────────────────────────
 
-async function fetchHTML(url: string): Promise<string> {
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-  const res = await fetch(proxyUrl);
-  if (!res.ok) throw new Error(`Failed to fetch HTML: ${res.status}`);
-  const data = await res.json();
-  return data.contents || "";
+interface FetchResult {
+  html: string;
+  finalUrl: string;
+  statusCode: number;
+  headers: Record<string, string>;
+  hasRobotsTxt: boolean;
+  hasSitemapXml: boolean;
+  robotsContent: string;
+}
+
+async function fetchHTML(url: string): Promise<FetchResult> {
+  // Use server-side API route for reliable fetching (no CORS issues)
+  const res = await fetch("/api/fetch-html", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to fetch HTML: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 async function fetchPSI(url: string, strategy: "mobile" | "desktop", apiKey: string) {
@@ -157,7 +175,7 @@ async function fetchPSI(url: string, strategy: "mobile" | "desktop", apiKey: str
 
 // ─── HTML Parser ─────────────────────────────────────────────────────────────
 
-function parseHTMLSignals(html: string, url: string) {
+function parseHTMLSignals(html: string, url: string, responseHeaders?: Record<string, string>) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
 
@@ -220,6 +238,46 @@ function parseHTMLSignals(html: string, url: string) {
   // Check if title has keyword-like capitalized words (not generic)
   const titleHasKeyword = title.length > 0 && /[A-Z][a-z]{2,}/.test(title) && !(/^(Home|Welcome|Page|Untitled|Document)$/i.test(title.trim()));
 
+  // New: hreflang tags
+  const hreflangTags = doc.querySelectorAll('link[rel="alternate"][hreflang]');
+  const hasHreflang = hreflangTags.length > 0;
+  const hreflangCount = hreflangTags.length;
+
+  // New: JSON-LD schema types
+  const schemaTypes: string[] = [];
+  structuredData.forEach((script) => {
+    try {
+      const json = JSON.parse(script.textContent || "");
+      const type = json["@type"] || (Array.isArray(json["@graph"]) ? json["@graph"].map((g: Record<string, string>) => g["@type"]).join(", ") : "");
+      if (type) schemaTypes.push(type);
+    } catch { /* ignore */ }
+  });
+
+  // New: Open Graph type
+  const ogType = doc.querySelector('meta[property="og:type"]')?.getAttribute("content") || "";
+
+  // New: Meta keywords (deprecated but still checked)
+  const metaKeywords = doc.querySelector('meta[name="keywords"]')?.getAttribute("content") || "";
+
+  // New: External script count (for render blocking analysis)
+  const externalScripts = doc.querySelectorAll("script[src]").length;
+
+  // New: Heading hierarchy check (H1 before H2, H2 before H3)
+  const headings = doc.querySelectorAll("h1, h2, h3, h4, h5, h6");
+  let headingOrderCorrect = true;
+  let lastLevel = 0;
+  headings.forEach((h) => {
+    const level = parseInt(h.tagName[1]);
+    if (level > lastLevel + 1 && lastLevel > 0) headingOrderCorrect = false;
+    lastLevel = level;
+  });
+
+  // New: Security headers from response
+  const hasHSTS = !!responseHeaders?.["strict-transport-security"];
+  const hasXFrameOptions = !!responseHeaders?.["x-frame-options"];
+  const hasCSP = !!responseHeaders?.["content-security-policy"];
+  const hasXContentType = !!responseHeaders?.["x-content-type-options"];
+
   return {
     title, titleLength: title.length, metaDesc, metaDescLength: metaDesc.length,
     h1Count: h1s.length, h1Content: h1s[0]?.textContent?.trim().substring(0, 100) || "",
@@ -230,6 +288,10 @@ function parseHTMLSignals(html: string, url: string) {
     inlineStyles: inlineStyles.length, wordCount, isHttps,
     hasCharset, internalLinkCount, externalLinkCount, totalPageSize,
     contentToHtmlRatio, headingDensity, titleHasKeyword,
+    // New signals
+    hasHreflang, hreflangCount, schemaTypes, ogType, metaKeywords,
+    externalScripts, headingOrderCorrect,
+    hasHSTS, hasXFrameOptions, hasCSP, hasXContentType,
   };
 }
 
@@ -480,6 +542,39 @@ function buildAuditData(
     }
     realSignals++;
 
+    // Hreflang tags
+    onPageTotal += 5;
+    if (htmlSignals.hasHreflang) {
+      onPageCriteria.push({ label: "Hreflang Tags", status: "pass", value: `${htmlSignals.hreflangCount} language(s) declared` });
+      onPagePoints += 5;
+    } else {
+      onPageCriteria.push({ label: "Hreflang Tags", status: "estimated", value: "Not set (OK for single-language sites)" });
+      onPagePoints += 3;
+    }
+    realSignals++;
+
+    // Heading hierarchy order
+    onPageTotal += 5;
+    if (htmlSignals.headingOrderCorrect) {
+      onPageCriteria.push({ label: "Heading Hierarchy", status: "pass", value: "Correct order (no skipped levels)" });
+      onPagePoints += 5;
+    } else {
+      onPageCriteria.push({ label: "Heading Hierarchy", status: "warning", value: "Headings skip levels (e.g. H1 → H3)", fix: "Use headings in order: H1 → H2 → H3. Don't skip levels." });
+      onPagePoints += 2;
+    }
+    realSignals++;
+
+    // Open Graph Type
+    onPageTotal += 5;
+    if (htmlSignals.ogType) {
+      onPageCriteria.push({ label: "Open Graph Type", status: "pass", value: `og:type="${htmlSignals.ogType}"` });
+      onPagePoints += 5;
+    } else {
+      onPageCriteria.push({ label: "Open Graph Type", status: "warning", value: "Missing og:type", fix: "Add <meta property='og:type' content='website'> for better social sharing" });
+      onPagePoints += 1;
+    }
+    realSignals++;
+
     onPageScore = onPageTotal > 0 ? Math.round((onPagePoints / onPageTotal) * 100) : 50;
   } else if (htmlError) {
     onPageCriteria.push({ label: "HTML Analysis", status: "na", value: htmlError });
@@ -588,7 +683,34 @@ function buildAuditData(
     }
     realSignals++;
 
-    // New: Page Size
+    // Security Headers (HSTS)
+    techTotal += 8;
+    if (htmlSignals.hasHSTS) {
+      techCriteria.push({ label: "HSTS Header", status: "pass", value: "Strict-Transport-Security present" });
+      techPoints += 8;
+    } else {
+      techCriteria.push({ label: "HSTS Header", status: "warning", value: "Missing", fix: "Add Strict-Transport-Security header to enforce HTTPS" });
+      techPoints += 2;
+    }
+    realSignals++;
+
+    // X-Content-Type-Options
+    techTotal += 5;
+    if (htmlSignals.hasXContentType) {
+      techCriteria.push({ label: "X-Content-Type-Options", status: "pass", value: "nosniff header present" });
+      techPoints += 5;
+    } else {
+      techCriteria.push({ label: "X-Content-Type-Options", status: "warning", value: "Missing", fix: "Add X-Content-Type-Options: nosniff header" });
+      techPoints += 1;
+    }
+    realSignals++;
+
+    // JSON-LD Schema Types detail
+    if (htmlSignals.schemaTypes.length > 0) {
+      techCriteria.push({ label: "Schema.org Types", status: "pass", value: htmlSignals.schemaTypes.join(", ") });
+    }
+
+    // Page Size
     techTotal += 10;
     const pageSizeKB = Math.round(htmlSignals.totalPageSize / 1024);
     if (pageSizeKB < 200) {
@@ -1077,11 +1199,13 @@ export default function SEODashboard() {
 
     try {
       try {
-        const html = await fetchHTML(normalizedUrl);
+        const result = await fetchHTML(normalizedUrl);
         newSteps[0] = { ...newSteps[0], done: true };
         setSteps([...newSteps]);
 
-        htmlSignals = parseHTMLSignals(html, normalizedUrl);
+        htmlSignals = parseHTMLSignals(result.html, normalizedUrl, result.headers);
+        hasRobotsTxt = result.hasRobotsTxt;
+        hasSitemapXml = result.hasSitemapXml;
         newSteps[1] = { ...newSteps[1], done: true };
         setSteps([...newSteps]);
       } catch {
@@ -1091,23 +1215,7 @@ export default function SEODashboard() {
         setSteps([...newSteps]);
       }
 
-      // Check robots.txt and sitemap.xml
-      try {
-        const origin = new URL(normalizedUrl).origin;
-        const proxyBase = "https://api.allorigins.win/raw?url=";
-        const [robotsRes, sitemapRes] = await Promise.allSettled([
-          fetch(proxyBase + encodeURIComponent(`${origin}/robots.txt`)),
-          fetch(proxyBase + encodeURIComponent(`${origin}/sitemap.xml`)),
-        ]);
-        if (robotsRes.status === "fulfilled" && robotsRes.value.ok) {
-          const text = await robotsRes.value.text();
-          hasRobotsTxt = text.toLowerCase().includes("user-agent");
-        }
-        if (sitemapRes.status === "fulfilled" && sitemapRes.value.ok) {
-          const text = await sitemapRes.value.text();
-          hasSitemapXml = text.toLowerCase().includes("<url") || text.toLowerCase().includes("<sitemap");
-        }
-      } catch { /* ignore */ }
+      // robots.txt & sitemap already checked by API route
       newSteps[2] = { ...newSteps[2], done: true };
       setSteps([...newSteps]);
 
@@ -1281,60 +1389,104 @@ export default function SEODashboard() {
               className="space-y-5"
             >
               {/* Row 1: KPI Cards */}
-              <KPICards audit={audit} actionPlan={actionPlan!} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.05, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                <KPICards audit={audit} actionPlan={actionPlan!} />
+              </motion.div>
 
               {/* Row 2: Category Table */}
-              <CategoryTable
-                categories={audit.categories}
-                onFullReport={() => setActiveView("action-plan")}
-              />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                <CategoryTable
+                  categories={audit.categories}
+                  onFullReport={() => setActiveView("action-plan")}
+                />
+              </motion.div>
 
               {/* Row 3: Top Issues + Score Chart */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <TopIssues items={actionPlan?.items ?? []} onSeeAll={() => setActiveView("action-plan")} />
-                <ScoreChart categories={audit.categories} onFullReport={() => setActiveView("action-plan")} />
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  <TopIssues items={actionPlan?.items ?? []} onSeeAll={() => setActiveView("action-plan")} />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  <ScoreChart categories={audit.categories} onFullReport={() => setActiveView("action-plan")} />
+                </motion.div>
               </div>
 
               {/* Row 4: Recent Findings + Category Comparison */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <FindingsPanel categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
-                <CategoryComparison categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  <FindingsPanel categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.55, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  <CategoryComparison categories={audit.categories} onSeeAll={() => setActiveView("category-details")} />
+                </motion.div>
               </div>
             </motion.div>
           )}
 
           {/* Detail view: Action Plan */}
           {audit && !loading && activeView === "action-plan" && actionPlan && (
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            >
               <button
                 onClick={() => setActiveView("dashboard")}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
+                className="group flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
               >
-                ← Back to Dashboard
+                <span className="transition-transform duration-200 group-hover:-translate-x-0.5">←</span> Back to Dashboard
               </button>
               <ActionPlanPanel
                 actionPlan={actionPlan}
                 onDownloadPDF={handleDownloadPDF}
                 pdfLoading={pdfLoading}
               />
-            </div>
+            </motion.div>
           )}
 
           {/* Detail view: Category details */}
           {audit && !loading && activeView.startsWith("category-") && (
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            >
               <button
                 onClick={() => setActiveView("dashboard")}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
+                className="group flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#374151] mb-4 transition-colors"
               >
-                ← Back to Dashboard
+                <span className="transition-transform duration-200 group-hover:-translate-x-0.5">←</span> Back to Dashboard
               </button>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {audit.categories.map((cat, i) => (
                   <CategoryCard key={cat.name} cat={cat} index={i} />
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Show right panel content on mobile/tablet (below center) */}
